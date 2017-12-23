@@ -5,6 +5,8 @@ import java.util.List;
 
 import javax.validation.constraints.NotNull;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import eu.europa.esig.dss.DigestAlgorithm;
 import eu.europa.esig.dss.EncryptionAlgorithm;
 import eu.europa.esig.dss.SignatureForm;
@@ -36,6 +38,10 @@ public abstract class AbstractSignatureForm {
 
 	private String base64SignatureValue;
 
+	private String signatureImagePages;
+	
+	private MultipartFile signatureImage;
+	
 	public boolean isNexuDetected() {
 		return nexuDetected;
 	}
@@ -116,4 +122,19 @@ public abstract class AbstractSignatureForm {
 		this.base64SignatureValue = base64SignatureValue;
 	}
 
+	public String getSignatureImagePages() {
+		return signatureImagePages;
+	}
+
+	public void setSignatureImagePages(String signatureImagePages) {
+		this.signatureImagePages = signatureImagePages;
+	}
+
+	public MultipartFile getSignatureImage() {
+		return signatureImage;
+	}
+
+	public void setSignatureImage(MultipartFile signatureImage) {
+		this.signatureImage = signatureImage;
+	}
 }

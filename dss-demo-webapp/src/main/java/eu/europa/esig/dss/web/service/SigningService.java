@@ -1,8 +1,10 @@
 package eu.europa.esig.dss.web.service;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -15,8 +17,14 @@ import eu.europa.esig.dss.ASiCContainerType;
 import eu.europa.esig.dss.AbstractSignatureParameters;
 import eu.europa.esig.dss.DSSDocument;
 import eu.europa.esig.dss.DSSUtils;
+import eu.europa.esig.dss.InMemoryDocument;
+import eu.europa.esig.dss.MimeType;
 import eu.europa.esig.dss.SignatureAlgorithm;
 import eu.europa.esig.dss.SignatureForm;
+import eu.europa.esig.dss.SignatureImagePageRange;
+import eu.europa.esig.dss.SignatureImageParameters;
+import eu.europa.esig.dss.SignatureImageParameters.VisualSignaturePagePlacement;
+import eu.europa.esig.dss.SignatureImageTextParameters;
 import eu.europa.esig.dss.SignatureValue;
 import eu.europa.esig.dss.ToBeSigned;
 import eu.europa.esig.dss.asic.ASiCWithCAdESSignatureParameters;
@@ -70,7 +78,7 @@ public class SigningService {
 
 		DocumentSignatureService service = getSignatureService(containerType, signatureForm);
 
-		AbstractSignatureParameters parameters = getSignatureParameters(containerType, signatureForm);
+		AbstractSignatureParameters parameters = getSignatureParameters(containerType, signatureForm, null);
 		parameters.setSignatureLevel(extensionForm.getSignatureLevel());
 
 		if (originalDocument != null) {
@@ -126,7 +134,7 @@ public class SigningService {
 	}
 
 	private AbstractSignatureParameters fillParameters(SignatureDocumentForm form) {
-		AbstractSignatureParameters parameters = getSignatureParameters(form.getContainerType(), form.getSignatureForm());
+		AbstractSignatureParameters parameters = getSignatureParameters(form.getContainerType(), form.getSignatureForm(), form);
 		parameters.setSignaturePackaging(form.getSignaturePackaging());
 
 		fillParameters(parameters, form);
@@ -219,7 +227,7 @@ public class SigningService {
 		return service;
 	}
 
-	private AbstractSignatureParameters getSignatureParameters(ASiCContainerType containerType, SignatureForm signatureForm) {
+	private AbstractSignatureParameters getSignatureParameters(ASiCContainerType containerType, SignatureForm signatureForm, SignatureDocumentForm form) {
 		AbstractSignatureParameters parameters = null;
 		if (containerType != null) {
 			parameters = getASiCSignatureParameters(containerType, signatureForm);
@@ -231,6 +239,23 @@ public class SigningService {
 			case PAdES:
 				PAdESSignatureParameters padesParams = new PAdESSignatureParameters();
 				padesParams.setSignatureSize(9472 * 2); // double reserved space for signature
+				if (form != null && !form.getSignatureImagePages().isEmpty()) {
+					padesParams.setSignatureImageParameters(new SignatureImageParameters());
+					padesParams.getSignatureImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
+					padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
+					padesParams.getSignatureImageParameters().getTextParameters().setText("Demo signature");
+					padesParams.getSignatureImageParameters().setPageRange(new SignatureImagePageRange());
+					padesParams.getSignatureImageParameters().getPageRange()
+							.setPages(Arrays.asList(form.getSignatureImagePages().split(",")).stream()
+									.map(Integer::parseInt).collect(Collectors.toList()));
+					try {
+						padesParams.getSignatureImageParameters().setImage(new InMemoryDocument(form.getSignatureImage().getBytes()));
+						padesParams.getSignatureImageParameters().getImage()
+							.setMimeType(MimeType.fromMimeTypeString(form.getSignatureImage().getContentType()));
+					} catch (IOException e) {
+						throw new IllegalStateException("Failed to read input file", e);
+					}
+				}
 				parameters = padesParams;
 				break;
 			case XAdES:

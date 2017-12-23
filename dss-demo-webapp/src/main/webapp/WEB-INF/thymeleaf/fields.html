@@ -128,6 +128,28 @@
     </div>
 </div>
 
+<div class="form-group" th:fragment="field-signature-image">
+    <label for="signatureImage" class="col-sm-2 control-label" th:text="#{label.signature-image}"></label>
+    <div class="col-sm-5">
+    	<input type="file" name="signatureImage" id="signatureImage" /> 
+    </div>
+    <div class="col-xs-4">
+     	<p th:if="${#fields.hasErrors('signatureImage')}" th:errors="*{signatureImage}" class="text-danger">Error</p>
+    </div>
+</div>
+
+
+<div class="form-group" th:fragment="field-signature-image-pages">
+    <label for="signatureImagePages" class="col-sm-2 control-label" th:text="#{label.signature-image-pages}"></label>
+    <div class="col-sm-5">
+	    <label class="text-inline"> 
+		    <input type="text" th:field="*{signatureImagePages}" th:value="${signatureImagePages}" th:text="${signatureImagePageRange}" />
+	    </label>
+    </div>
+    <div class="col-xs-4">
+    	<p th:if="${#fields.hasErrors('signatureImagePages')}" th:errors="*{signatureImagePages}" class="text-danger">Error</p>
+    </div>
+</div>
 <div class="form-group" id="sign-expired-block" th:fragment="field-sign-expired">
     <label for="signWithExpiredCertificate" class="col-sm-2 control-label" th:text="#{label.allow.expired.certificate}"></label>
     <div class="col-sm-4">
