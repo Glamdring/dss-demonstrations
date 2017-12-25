@@ -26,6 +26,7 @@ import eu.europa.esig.dss.SignatureForm;
 import eu.europa.esig.dss.SignatureImagePageRange;
 import eu.europa.esig.dss.SignatureImageParameters;
 import eu.europa.esig.dss.SignatureImageParameters.VisualSignaturePagePlacement;
+import eu.europa.esig.dss.SignatureImageTextParameters.SignerPosition;
 import eu.europa.esig.dss.SignatureImageTextParameters;
 import eu.europa.esig.dss.SignatureValue;
 import eu.europa.esig.dss.ToBeSigned;
@@ -255,6 +256,7 @@ public class SigningService {
 						padesParams.getStampImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
 						padesParams.getStampImageParameters().setTextParameters(new SignatureImageTextParameters());
 						padesParams.getStampImageParameters().getTextParameters().setText("Demo signature");
+						padesParams.getStampImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
 						padesParams.getStampImageParameters().setPageRange(new SignatureImagePageRange());
 						padesParams.getStampImageParameters().getPageRange()
 								.setPages(Arrays.asList(form.getStampImagePages().split(",")).stream()
@@ -273,6 +275,7 @@ public class SigningService {
 						padesParams.setSignatureImageParameters(new SignatureImageParameters());
 						padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
 						padesParams.getSignatureImageParameters().getTextParameters().setText("Demo signature");
+						padesParams.getSignatureImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
 						padesParams.getSignatureImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
 						padesParams.getSignatureImageParameters().setImage(padesParams.getStampImageParameters().getImage());
 					}
