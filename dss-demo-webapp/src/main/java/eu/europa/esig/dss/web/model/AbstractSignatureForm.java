@@ -38,7 +38,9 @@ public abstract class AbstractSignatureForm {
 
 	private String base64SignatureValue;
 
-	private String signatureImagePages;
+	private String stampImagePages;
+	
+	private String signatureImagePage;
 	
 	private MultipartFile signatureImage;
 	
@@ -121,13 +123,21 @@ public abstract class AbstractSignatureForm {
 	public void setBase64SignatureValue(String base64SignatureValue) {
 		this.base64SignatureValue = base64SignatureValue;
 	}
-
-	public String getSignatureImagePages() {
-		return signatureImagePages;
+	
+	public String getStampImagePages() {
+		return stampImagePages;
 	}
 
-	public void setSignatureImagePages(String signatureImagePages) {
-		this.signatureImagePages = signatureImagePages;
+	public void setStampImagePages(String stampImagePages) {
+		this.stampImagePages = stampImagePages;
+	}
+
+	public String getSignatureImagePage() {
+		return signatureImagePage;
+	}
+
+	public void setSignatureImagePage(String signatureImagePage) {
+		this.signatureImagePage = signatureImagePage;
 	}
 
 	public MultipartFile getSignatureImage() {

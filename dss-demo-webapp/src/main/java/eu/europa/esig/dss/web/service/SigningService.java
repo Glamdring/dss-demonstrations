@@ -1,11 +1,13 @@
 package eu.europa.esig.dss.web.service;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.imageio.ImageIO;
 import javax.xml.bind.DatatypeConverter;
 
 import org.slf4j.Logger;
@@ -239,21 +241,40 @@ public class SigningService {
 			case PAdES:
 				PAdESSignatureParameters padesParams = new PAdESSignatureParameters();
 				padesParams.setSignatureSize(9472 * 2); // double reserved space for signature
-				if (form != null && !form.getSignatureImagePages().isEmpty()) {
-					padesParams.setSignatureImageParameters(new SignatureImageParameters());
-					padesParams.getSignatureImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
-					padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
-					padesParams.getSignatureImageParameters().getTextParameters().setText("Demo signature");
-					padesParams.getSignatureImageParameters().setPageRange(new SignatureImagePageRange());
-					padesParams.getSignatureImageParameters().getPageRange()
-							.setPages(Arrays.asList(form.getSignatureImagePages().split(",")).stream()
-									.map(Integer::parseInt).collect(Collectors.toList()));
+				if (form != null) {
+					DSSDocument image;
 					try {
-						padesParams.getSignatureImageParameters().setImage(new InMemoryDocument(form.getSignatureImage().getBytes()));
-						padesParams.getSignatureImageParameters().getImage()
-							.setMimeType(MimeType.fromMimeTypeString(form.getSignatureImage().getContentType()));
+						image = new InMemoryDocument(form.getSignatureImage().getBytes());
+						image.setMimeType(MimeType.fromMimeTypeString(form.getSignatureImage().getContentType()));
 					} catch (IOException e) {
 						throw new IllegalStateException("Failed to read input file", e);
+					}
+					
+					if (!form.getStampImagePages().isEmpty()) {
+						padesParams.setStampImageParameters(new SignatureImageParameters());
+						padesParams.getStampImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
+						padesParams.getStampImageParameters().setTextParameters(new SignatureImageTextParameters());
+						padesParams.getStampImageParameters().getTextParameters().setText("Demo signature");
+						padesParams.getStampImageParameters().setPageRange(new SignatureImagePageRange());
+						padesParams.getStampImageParameters().getPageRange()
+								.setPages(Arrays.asList(form.getStampImagePages().split(",")).stream()
+										.map(Integer::parseInt).collect(Collectors.toList()));
+						padesParams.getStampImageParameters().setImage(image);
+						try {
+							BufferedImage img = ImageIO.read(image.openStream());
+							padesParams.getStampImageParameters().setWidth(img.getWidth());
+							padesParams.getStampImageParameters().setHeight(img.getHeight());
+						} catch (IOException e) {
+							throw new IllegalStateException("Failed to parse image", e);
+						}
+					}
+					
+					if (!form.getSignatureImagePage().isEmpty()) {
+						padesParams.setSignatureImageParameters(new SignatureImageParameters());
+						padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
+						padesParams.getSignatureImageParameters().getTextParameters().setText("Demo signature");
+						padesParams.getSignatureImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
+						padesParams.getSignatureImageParameters().setImage(padesParams.getStampImageParameters().getImage());
 					}
 				}
 				parameters = padesParams;
