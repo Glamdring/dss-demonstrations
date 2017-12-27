@@ -27,6 +27,7 @@ import eu.europa.esig.dss.SignatureImagePageRange;
 import eu.europa.esig.dss.SignatureImageParameters;
 import eu.europa.esig.dss.SignatureImageParameters.VisualSignaturePagePlacement;
 import eu.europa.esig.dss.SignatureImageTextParameters.SignerPosition;
+import eu.europa.esig.dss.SignatureImageTextParameters.SignerTextHorizontalAlignment;
 import eu.europa.esig.dss.SignatureImageTextParameters;
 import eu.europa.esig.dss.SignatureValue;
 import eu.europa.esig.dss.ToBeSigned;
@@ -240,47 +241,7 @@ public class SigningService {
 				parameters = new CAdESSignatureParameters();
 				break;
 			case PAdES:
-				PAdESSignatureParameters padesParams = new PAdESSignatureParameters();
-				padesParams.setSignatureSize(9472 * 2); // double reserved space for signature
-				if (form != null) {
-					DSSDocument image;
-					try {
-						image = new InMemoryDocument(form.getSignatureImage().getBytes());
-						image.setMimeType(MimeType.fromMimeTypeString(form.getSignatureImage().getContentType()));
-					} catch (IOException e) {
-						throw new IllegalStateException("Failed to read input file", e);
-					}
-					
-					if (!form.getStampImagePages().isEmpty()) {
-						padesParams.setStampImageParameters(new SignatureImageParameters());
-						padesParams.getStampImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
-						padesParams.getStampImageParameters().setTextParameters(new SignatureImageTextParameters());
-						padesParams.getStampImageParameters().getTextParameters().setText("Demo signature");
-						padesParams.getStampImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
-						padesParams.getStampImageParameters().setPageRange(new SignatureImagePageRange());
-						padesParams.getStampImageParameters().getPageRange()
-								.setPages(Arrays.asList(form.getStampImagePages().split(",")).stream()
-										.map(Integer::parseInt).collect(Collectors.toList()));
-						padesParams.getStampImageParameters().setImage(image);
-						try {
-							BufferedImage img = ImageIO.read(image.openStream());
-							padesParams.getStampImageParameters().setWidth(img.getWidth());
-							padesParams.getStampImageParameters().setHeight(img.getHeight());
-						} catch (IOException e) {
-							throw new IllegalStateException("Failed to parse image", e);
-						}
-					}
-					
-					if (!form.getSignatureImagePage().isEmpty()) {
-						padesParams.setSignatureImageParameters(new SignatureImageParameters());
-						padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
-						padesParams.getSignatureImageParameters().getTextParameters().setText("Demo signature");
-						padesParams.getSignatureImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
-						padesParams.getSignatureImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
-						padesParams.getSignatureImageParameters().setImage(padesParams.getStampImageParameters().getImage());
-					}
-				}
-				parameters = padesParams;
+				parameters = createPAdESParameters(form);
 				break;
 			case XAdES:
 				parameters = new XAdESSignatureParameters();
@@ -291,6 +252,56 @@ public class SigningService {
 		}
 		return parameters;
 	}
+
+    private PAdESSignatureParameters createPAdESParameters(SignatureDocumentForm form) {
+        PAdESSignatureParameters padesParams = new PAdESSignatureParameters();
+        padesParams.setSignatureSize(9472 * 2); // double reserved space for signature
+        if (form != null) {
+        	DSSDocument image;
+        	try {
+        		image = new InMemoryDocument(form.getSignatureImage().getBytes());
+        		image.setMimeType(MimeType.fromMimeTypeString(form.getSignatureImage().getContentType()));
+        	} catch (IOException e) {
+        		throw new IllegalStateException("Failed to read input file", e);
+        	}
+        	
+        	if (!form.getStampImagePages().isEmpty()) {
+        		padesParams.setStampImageParameters(new SignatureImageParameters());
+        		padesParams.getStampImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
+        		padesParams.getStampImageParameters().setTextParameters(new SignatureImageTextParameters());
+        		padesParams.getStampImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
+        		padesParams.getStampImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
+        		padesParams.getStampImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
+        		padesParams.getStampImageParameters().setTextRightParameters(new SignatureImageTextParameters());
+        		padesParams.getStampImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
+        		padesParams.getStampImageParameters().setPageRange(new SignatureImagePageRange());
+        		padesParams.getStampImageParameters().getPageRange()
+        				.setPages(Arrays.asList(form.getStampImagePages().split(",")).stream()
+        						.map(Integer::parseInt).collect(Collectors.toList()));
+        		padesParams.getStampImageParameters().setImage(image);
+        		try {
+        			BufferedImage img = ImageIO.read(image.openStream());
+        			padesParams.getStampImageParameters().setWidth(img.getWidth());
+        			padesParams.getStampImageParameters().setHeight(img.getHeight());
+        		} catch (IOException e) {
+        			throw new IllegalStateException("Failed to parse image", e);
+        		}
+        	}
+        	
+        	if (!form.getSignatureImagePage().isEmpty()) {
+        		padesParams.setSignatureImageParameters(new SignatureImageParameters());
+        		padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
+                padesParams.getSignatureImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
+                padesParams.getSignatureImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
+                padesParams.getSignatureImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
+                padesParams.getSignatureImageParameters().setTextRightParameters(new SignatureImageTextParameters());
+                padesParams.getSignatureImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
+        		padesParams.getSignatureImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
+        		padesParams.getSignatureImageParameters().setImage(padesParams.getStampImageParameters().getImage());
+        	}
+        }
+        return padesParams;
+    }
 
 	@SuppressWarnings("rawtypes")
 	private MultipleDocumentsSignatureService getASiCSignatureService(SignatureForm signatureForm) {
