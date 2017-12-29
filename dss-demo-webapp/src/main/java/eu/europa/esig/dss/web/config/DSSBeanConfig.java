@@ -1,5 +1,6 @@
 package eu.europa.esig.dss.web.config;
 
+import java.io.File;
 import java.io.IOException;
 
 import javax.sql.DataSource;
@@ -81,6 +82,9 @@ public class DSSBeanConfig {
 
 	@Value("${dss.server.signing.keystore.password}")
 	private String serverSigningKeystorePassword;
+	
+	@Value("${pdf.signature.image.dir}")
+	private String signatureImageDir;
 
 	@Autowired
 	private DataSource dataSource;
@@ -187,6 +191,7 @@ public class DSSBeanConfig {
 	public PAdESService padesService() throws Exception {
 		PAdESService service = new PAdESService(certificateVerifier());
 		service.setTspSource(tspSource());
+		service.setSignatureImageDir(new File(signatureImageDir));
 		return service;
 	}
 
