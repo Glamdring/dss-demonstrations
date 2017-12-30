@@ -3,7 +3,6 @@ package eu.europa.esig.dss.web.config;
 import java.io.File;
 import java.io.IOException;
 
-import javax.annotation.PostConstruct;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,13 +93,6 @@ public class DSSBeanConfig {
 	@Autowired(required = false)
 	private ProxyConfig proxyConfig;
 	
-	@Value("${dss.config.path}")
-	private String path;
-	@PostConstruct
-	public void init() {
-	    System.out.println("AAA: " + path + " : " + signatureImageDir + ": : " + System.getProperty("dss.config.path"));
-	}
-
 	@Bean
 	public CommonsDataLoader dataLoader() {
 		CommonsDataLoader dataLoader = new CommonsDataLoader();
