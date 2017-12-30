@@ -6,9 +6,13 @@ import java.io.StringReader;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 import javax.xml.bind.DatatypeConverter;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -19,9 +23,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.logsentinel.ApiCallback;
+import com.logsentinel.ApiException;
+import com.logsentinel.LogSentinelClient;
+import com.logsentinel.client.model.ActionData;
+import com.logsentinel.client.model.ActorData;
+import com.logsentinel.client.model.AuditLogEntryType;
+import com.logsentinel.client.model.LogResponse;
+
 import eu.europa.esig.dss.ASiCContainerType;
 import eu.europa.esig.dss.AbstractSignatureParameters;
 import eu.europa.esig.dss.DSSDocument;
+import eu.europa.esig.dss.DSSException;
 import eu.europa.esig.dss.DSSUtils;
 import eu.europa.esig.dss.InMemoryDocument;
 import eu.europa.esig.dss.MimeType;
@@ -74,6 +87,9 @@ public class SigningService {
 
 	@Autowired
 	private ASiCWithXAdESService asicWithXAdESService;
+	
+	@Autowired(required=false)
+	private LogSentinelClient logSentinelClient;
 	
 	private Unmarshaller jaxbUnmarshaller = createJAXBUnmarshaller();
 
@@ -195,6 +211,8 @@ public class SigningService {
 			SignatureAlgorithm sigAlgorithm = SignatureAlgorithm.getAlgorithm(form.getEncryptionAlgorithm(), form.getDigestAlgorithm());
 			SignatureValue signatureValue = new SignatureValue(sigAlgorithm, DatatypeConverter.parseBase64Binary(form.getBase64SignatureValue()));
 			signedDocument = service.signDocument(toSignDocument, parameters, signatureValue);
+			
+			logSigningRequest(signedDocument, parameters);
 		} catch (Exception e) {
 			logger.error("Unable to execute signDocument : " + e.getMessage(), e);
 		}
@@ -202,7 +220,7 @@ public class SigningService {
 		return signedDocument;
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings({ "rawtypes", "unchecked" })
 	public DSSDocument signDocument(SignatureMultipleDocumentsForm form) {
 		logger.info("Start signDocument with multiple documents");
 		MultipleDocumentsSignatureService service = getASiCSignatureService(form.getSignatureForm());
@@ -371,5 +389,62 @@ public class SigningService {
 		}
 		return parameters;
 	}
-
+	
+	/**
+	 * Send audit trail information to the LogSentinel audit trail service for secure storing
+	 * 
+	 * @param signedDocument
+	 * @param parameters
+	 */
+	private void logSigningRequest(DSSDocument signedDocument, AbstractSignatureParameters params) {
+        if (logSentinelClient == null) {
+            return;
+        }
+        
+        String principal = params.getSigningCertificate().getSubjectX500Principal().getName().replace("+", ",");
+        LdapName ldapName;
+        try {
+            ldapName = new LdapName(principal);
+        } catch (InvalidNameException ex) {
+            throw new DSSException(ex);
+        }
+        String signerNames = ldapName.getRdns().stream()
+                .filter(rdn -> rdn.getType().equals("CN"))
+                .map(Rdn::getValue)
+                .map(String.class::cast)
+                .findFirst().orElse("");
+                
+        ActorData actor = new ActorData(params.getSigningCertificate().getCertificate().getSerialNumber().toString());
+        actor.setActorDisplayName(signerNames);
+        
+        ActionData action = new ActionData(signedDocument.getDigest(params.getDigestAlgorithm()));
+        action.setAction("SIGN");
+        action.setEntityType("DOCUMENT");
+        action.setEntityId(signedDocument.getName());
+        action.setEntryType(AuditLogEntryType.BUSINESS_LOGIC_ENTRY);
+        
+        try {
+            logSentinelClient.getAuditLogActions().logAsync(actor, action, new ApiCallback<LogResponse>() {
+                
+                @Override
+                public void onUploadProgress(long bytesWritten, long contentLength, boolean done) {
+                }
+                
+                @Override
+                public void onSuccess(LogResponse result, int statusCode, Map<String, List<String>> responseHeaders) {
+                }
+                
+                @Override
+                public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
+                    logger.error("Failed to log request", e);
+                }
+                
+                @Override
+                public void onDownloadProgress(long bytesRead, long contentLength, boolean done) {
+                }
+            });
+        } catch (ApiException e) {
+            logger.error("Failed to log request", e);
+        }
+    }
 }
