@@ -3,6 +3,7 @@ package eu.europa.esig.dss.web.config;
 import java.io.File;
 import java.io.IOException;
 
+import javax.annotation.PostConstruct;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +44,7 @@ import eu.europa.esig.dss.x509.tsp.TSPSource;
 import eu.europa.esig.dss.xades.signature.XAdESService;
 
 @Configuration
-@PropertySource("classpath:dss.properties")
+@PropertySource(value= {"classpath:dss.properties", "file:${dss.config.path}/dss.properties"}, ignoreResourceNotFound=true)
 @ComponentScan(basePackages = { "eu.europa.esig.dss" })
 public class DSSBeanConfig {
 
@@ -92,6 +93,13 @@ public class DSSBeanConfig {
 	// can be null
 	@Autowired(required = false)
 	private ProxyConfig proxyConfig;
+	
+	@Value("${dss.config.path}")
+	private String path;
+	@PostConstruct
+	public void init() {
+	    System.out.println("AAA: " + path + " : " + signatureImageDir + ": : " + System.getProperty("dss.config.path"));
+	}
 
 	@Bean
 	public CommonsDataLoader dataLoader() {

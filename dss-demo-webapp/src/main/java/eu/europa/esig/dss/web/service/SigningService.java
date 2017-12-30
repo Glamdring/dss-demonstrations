@@ -2,6 +2,7 @@ package eu.europa.esig.dss.web.service;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -9,6 +10,9 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.xml.bind.DatatypeConverter;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +30,9 @@ import eu.europa.esig.dss.SignatureForm;
 import eu.europa.esig.dss.SignatureImagePageRange;
 import eu.europa.esig.dss.SignatureImageParameters;
 import eu.europa.esig.dss.SignatureImageParameters.VisualSignaturePagePlacement;
+import eu.europa.esig.dss.SignatureImageTextParameters;
 import eu.europa.esig.dss.SignatureImageTextParameters.SignerPosition;
 import eu.europa.esig.dss.SignatureImageTextParameters.SignerTextHorizontalAlignment;
-import eu.europa.esig.dss.SignatureImageTextParameters;
 import eu.europa.esig.dss.SignatureValue;
 import eu.europa.esig.dss.ToBeSigned;
 import eu.europa.esig.dss.asic.ASiCWithCAdESSignatureParameters;
@@ -70,6 +74,8 @@ public class SigningService {
 
 	@Autowired
 	private ASiCWithXAdESService asicWithXAdESService;
+	
+	private Unmarshaller jaxbUnmarshaller = createJAXBUnmarshaller();
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public DSSDocument extend(ExtensionForm extensionForm) {
@@ -93,7 +99,15 @@ public class SigningService {
 		return extendedDoc;
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private Unmarshaller createJAXBUnmarshaller() {
+        try {
+            return JAXBContext.newInstance(SignatureImageParameters.class).createUnmarshaller();
+        } catch (JAXBException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
 	public ToBeSigned getDataToSign(SignatureDocumentForm form) {
 		logger.info("Start getDataToSign with one document");
 		DocumentSignatureService service = getSignatureService(form.getContainerType(), form.getSignatureForm());
@@ -257,48 +271,68 @@ public class SigningService {
         PAdESSignatureParameters padesParams = new PAdESSignatureParameters();
         padesParams.setSignatureSize(9472 * 2); // double reserved space for signature
         if (form != null) {
-        	DSSDocument image;
+        	DSSDocument image = null;
         	try {
-        		image = new InMemoryDocument(form.getSignatureImage().getBytes());
-        		image.setMimeType(MimeType.fromMimeTypeString(form.getSignatureImage().getContentType()));
+        	    if (!form.getSignatureImage().isEmpty()) {
+            		image = new InMemoryDocument(form.getSignatureImage().getBytes());
+            		image.setMimeType(MimeType.fromMimeTypeString(form.getSignatureImage().getContentType()));
+        	    }
         	} catch (IOException e) {
         		throw new IllegalStateException("Failed to read input file", e);
         	}
         	
-        	if (!form.getStampImagePages().isEmpty()) {
-        		padesParams.setStampImageParameters(new SignatureImageParameters());
-        		padesParams.getStampImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
-        		padesParams.getStampImageParameters().setTextParameters(new SignatureImageTextParameters());
-        		padesParams.getStampImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
-        		padesParams.getStampImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
-        		padesParams.getStampImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
-        		padesParams.getStampImageParameters().setTextRightParameters(new SignatureImageTextParameters());
-        		padesParams.getStampImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
-        		padesParams.getStampImageParameters().setPageRange(new SignatureImagePageRange());
-        		padesParams.getStampImageParameters().getPageRange()
-        				.setPages(Arrays.asList(form.getStampImagePages().split(",")).stream()
-        						.map(Integer::parseInt).collect(Collectors.toList()));
-        		padesParams.getStampImageParameters().setImage(image);
-        		try {
-        			BufferedImage img = ImageIO.read(image.openStream());
-        			padesParams.getStampImageParameters().setWidth(img.getWidth());
-        			padesParams.getStampImageParameters().setHeight(img.getHeight());
-        		} catch (IOException e) {
-        			throw new IllegalStateException("Failed to parse image", e);
-        		}
-        	}
-        	
-        	if (!form.getSignatureImagePage().isEmpty()) {
-        		padesParams.setSignatureImageParameters(new SignatureImageParameters());
-        		padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
-                padesParams.getSignatureImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
-                padesParams.getSignatureImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
-                padesParams.getSignatureImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
-                padesParams.getSignatureImageParameters().setTextRightParameters(new SignatureImageTextParameters());
-                padesParams.getSignatureImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
-        		padesParams.getSignatureImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
-        		padesParams.getSignatureImageParameters().setImage(padesParams.getStampImageParameters().getImage());
-        	}
+        	// Supplying the XML allows for fully customizing the signature
+        	if (Utils.isStringNotBlank(form.getSignatureImageXml())) {
+        	    try {
+                    SignatureImageParameters signatureParams = (SignatureImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getSignatureImageXml()));
+                    SignatureImageParameters stampParams = (SignatureImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getStampImageXml()));
+                    
+                    padesParams.setSignatureImageParameters(signatureParams);
+                    padesParams.setStampImageParameters(stampParams);
+                } catch (JAXBException e) {
+                    throw new IllegalArgumentException(e);
+                }
+        	    
+        	    
+        	} else { // sample parameters without full customizability
+        	    if (image == null) {
+        	        throw new IllegalArgumentException("Image should be provided in case XML is missing");
+        	    }
+            	if (!form.getStampImagePages().isEmpty()) {
+            		padesParams.setStampImageParameters(new SignatureImageParameters());
+            		padesParams.getStampImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
+            		padesParams.getStampImageParameters().setTextParameters(new SignatureImageTextParameters());
+            		padesParams.getStampImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
+            		padesParams.getStampImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
+            		padesParams.getStampImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
+            		padesParams.getStampImageParameters().setTextRightParameters(new SignatureImageTextParameters());
+            		padesParams.getStampImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
+            		padesParams.getStampImageParameters().setPageRange(new SignatureImagePageRange());
+            		padesParams.getStampImageParameters().getPageRange()
+            				.setPages(Arrays.asList(form.getStampImagePages().split(",")).stream()
+            						.map(Integer::parseInt).collect(Collectors.toList()));
+            		padesParams.getStampImageParameters().setImage(image);
+            		try {
+            			BufferedImage img = ImageIO.read(image.openStream());
+            			padesParams.getStampImageParameters().setWidth(img.getWidth());
+            			padesParams.getStampImageParameters().setHeight(img.getHeight());
+            		} catch (IOException e) {
+            			throw new IllegalStateException("Failed to parse image", e);
+            		}
+            	}
+            	
+            	if (!form.getSignatureImagePage().isEmpty()) {
+            		padesParams.setSignatureImageParameters(new SignatureImageParameters());
+            		padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
+                    padesParams.getSignatureImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
+                    padesParams.getSignatureImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
+                    padesParams.getSignatureImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
+                    padesParams.getSignatureImageParameters().setTextRightParameters(new SignatureImageTextParameters());
+                    padesParams.getSignatureImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
+            		padesParams.getSignatureImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
+            		padesParams.getSignatureImageParameters().setImage(padesParams.getStampImageParameters().getImage());
+            	}
+            }
         }
         return padesParams;
     }

@@ -44,6 +44,10 @@ public abstract class AbstractSignatureForm {
 	
 	private MultipartFile signatureImage;
 	
+	private String signatureImageXml;
+	
+	private String stampImageXml;
+	
 	public boolean isNexuDetected() {
 		return nexuDetected;
 	}
@@ -147,4 +151,20 @@ public abstract class AbstractSignatureForm {
 	public void setSignatureImage(MultipartFile signatureImage) {
 		this.signatureImage = signatureImage;
 	}
+
+    public String getSignatureImageXml() {
+        return signatureImageXml;
+    }
+
+    public void setSignatureImageXml(String signatureImageXml) {
+        this.signatureImageXml = signatureImageXml;
+    }
+
+    public String getStampImageXml() {
+        return stampImageXml;
+    }
+
+    public void setStampImageXml(String stampImageXml) {
+        this.stampImageXml = stampImageXml;
+    }
 }

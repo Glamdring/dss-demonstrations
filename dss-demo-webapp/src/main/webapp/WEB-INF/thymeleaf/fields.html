@@ -162,6 +162,30 @@
     </div>
 </div>
 
+<div class="form-group" th:fragment="field-signature-image-xml">
+    <label for="signatureImageXml" class="col-sm-2 control-label" th:text="#{label.signature-image-xml}"></label>
+    <div class="col-sm-5">
+        <label class="text-inline"> 
+            <textarea th:field="*{signatureImageXml}" th:value="${signatureImageXml}" th:text="${signatureImageXml}" rows="5"></textarea>
+        </label>
+    </div>
+    <div class="col-xs-4">
+        <p th:if="${#fields.hasErrors('signatureImageXml')}" th:errors="*{signatureImageXml}" class="text-danger">Error</p>
+    </div>
+</div>
+
+<div class="form-group" th:fragment="field-stamp-image-xml">
+    <label for="signatureImageXml" class="col-sm-2 control-label" th:text="#{label.stamp-image-xml}"></label>
+    <div class="col-sm-5">
+        <label class="text-inline"> 
+            <textarea th:field="*{stampImageXml}" th:value="${stampImageXml}" th:text="${stampImageXml}" rows="5"></textarea>
+        </label>
+    </div>
+    <div class="col-xs-4">
+        <p th:if="${#fields.hasErrors('stampImageXml')}" th:errors="*{stampImageXml}" class="text-danger">Error</p>
+    </div>
+</div>
+
 <div class="form-group" id="sign-expired-block" th:fragment="field-sign-expired">
     <label for="signWithExpiredCertificate" class="col-sm-2 control-label" th:text="#{label.allow.expired.certificate}"></label>
     <div class="col-sm-4">
