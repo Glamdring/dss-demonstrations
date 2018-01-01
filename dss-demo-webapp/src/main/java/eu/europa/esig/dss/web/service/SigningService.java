@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.logsentinel.ApiCallback;
+import com.logsentinel.ApiCallbackAdapter;
 import com.logsentinel.ApiException;
 import com.logsentinel.LogSentinelClient;
 import com.logsentinel.client.model.ActionData;
@@ -303,10 +303,12 @@ public class SigningService {
         	if (Utils.isStringNotBlank(form.getSignatureImageXml())) {
         	    try {
                     SignatureImageParameters signatureParams = (SignatureImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getSignatureImageXml()));
-                    SignatureImageParameters stampParams = (SignatureImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getStampImageXml()));
-                    
                     padesParams.setSignatureImageParameters(signatureParams);
-                    padesParams.setStampImageParameters(stampParams);
+                    
+                    if (Utils.isStringNotBlank(form.getStampImageXml())) {
+                        SignatureImageParameters stampParams = (SignatureImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getStampImageXml()));
+                        padesParams.setStampImageParameters(stampParams);
+                    }
                 } catch (JAXBException e) {
                     throw new IllegalArgumentException(e);
                 }
@@ -424,23 +426,10 @@ public class SigningService {
         action.setEntryType(AuditLogEntryType.BUSINESS_LOGIC_ENTRY);
         
         try {
-            logSentinelClient.getAuditLogActions().logAsync(actor, action, new ApiCallback<LogResponse>() {
-                
-                @Override
-                public void onUploadProgress(long bytesWritten, long contentLength, boolean done) {
-                }
-                
-                @Override
-                public void onSuccess(LogResponse result, int statusCode, Map<String, List<String>> responseHeaders) {
-                }
-                
+            logSentinelClient.getAuditLogActions().logAsync(actor, action, new ApiCallbackAdapter<LogResponse>() {
                 @Override
                 public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
                     logger.error("Failed to log request", e);
-                }
-                
-                @Override
-                public void onDownloadProgress(long bytesRead, long contentLength, boolean done) {
                 }
             });
         } catch (ApiException e) {
