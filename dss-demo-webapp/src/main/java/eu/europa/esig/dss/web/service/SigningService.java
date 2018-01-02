@@ -422,7 +422,9 @@ public class SigningService {
         ActionData action = new ActionData(signedDocument.getDigest(params.getDigestAlgorithm()));
         action.setAction("SIGN");
         action.setEntityType("DOCUMENT");
-        action.setEntityId(signedDocument.getName());
+        if (signedDocument.getName() != null) {
+            action.setEntityId(signedDocument.getName().replace(".pdf", ""));
+        }
         action.setEntryType(AuditLogEntryType.BUSINESS_LOGIC_ENTRY);
         
         try {
