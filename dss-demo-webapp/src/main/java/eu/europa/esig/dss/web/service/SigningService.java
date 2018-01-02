@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import javax.xml.bind.DatatypeConverter;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
+import javax.xml.bind.annotation.XmlRootElement;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -306,8 +308,8 @@ public class SigningService {
                     padesParams.setSignatureImageParameters(signatureParams);
                     
                     if (Utils.isStringNotBlank(form.getStampImageXml())) {
-                        SignatureImageParameters stampParams = (SignatureImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getStampImageXml()));
-                        padesParams.setStampImageParameters(stampParams);
+                        StampImageParameters stampParams = (StampImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getStampImageXml()));
+                        padesParams.setStampImageParameters(stampParams.getParameters());
                     }
                 } catch (JAXBException e) {
                     throw new IllegalArgumentException(e);
@@ -319,26 +321,28 @@ public class SigningService {
         	        throw new IllegalArgumentException("Image should be provided in case XML is missing");
         	    }
             	if (!form.getStampImagePages().isEmpty()) {
-            		padesParams.setStampImageParameters(new SignatureImageParameters());
-            		padesParams.getStampImageParameters().setPagePlacement(VisualSignaturePagePlacement.RANGE);
-            		padesParams.getStampImageParameters().setTextParameters(new SignatureImageTextParameters());
-            		padesParams.getStampImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
-            		padesParams.getStampImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
-            		padesParams.getStampImageParameters().getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
-            		padesParams.getStampImageParameters().setTextRightParameters(new SignatureImageTextParameters());
-            		padesParams.getStampImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
-            		padesParams.getStampImageParameters().setPageRange(new SignatureImagePageRange());
-            		padesParams.getStampImageParameters().getPageRange()
-            				.setPages(Arrays.asList(form.getStampImagePages().split(",")).stream()
+            		SignatureImageParameters stampParams = new SignatureImageParameters();
+            		stampParams.setPagePlacement(VisualSignaturePagePlacement.RANGE);
+            		stampParams.setTextParameters(new SignatureImageTextParameters());
+            		stampParams.getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
+            		stampParams.getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
+            		stampParams.getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
+            		stampParams.setTextRightParameters(new SignatureImageTextParameters());
+            		stampParams.getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
+            		stampParams.setPageRange(new SignatureImagePageRange());
+            		stampParams.getPageRange().setPages(Arrays.asList(form.getStampImagePages().split(","))
+            		                .stream()
             						.map(Integer::parseInt).collect(Collectors.toList()));
-            		padesParams.getStampImageParameters().setImage(image);
+            		stampParams.setImage(image);
             		try {
             			BufferedImage img = ImageIO.read(image.openStream());
-            			padesParams.getStampImageParameters().setWidth(img.getWidth());
-            			padesParams.getStampImageParameters().setHeight(img.getHeight());
+            			stampParams.setWidth(img.getWidth());
+            			stampParams.setHeight(img.getHeight());
             		} catch (IOException e) {
             			throw new IllegalStateException("Failed to parse image", e);
             		}
+            		
+            		padesParams.setStampImageParameters(Collections.singletonList(stampParams));
             	}
             	
             	if (!form.getSignatureImagePage().isEmpty()) {
@@ -350,7 +354,10 @@ public class SigningService {
                     padesParams.getSignatureImageParameters().setTextRightParameters(new SignatureImageTextParameters());
                     padesParams.getSignatureImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
             		padesParams.getSignatureImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
-            		padesParams.getSignatureImageParameters().setImage(padesParams.getStampImageParameters().getImage());
+            		if (!padesParams.getStampImageParameters().isEmpty()) {
+            		    padesParams.getSignatureImageParameters()
+            		        .setImage(padesParams.getStampImageParameters().get(0).getImage());
+            		}
             	}
             }
         }
@@ -438,4 +445,17 @@ public class SigningService {
             logger.error("Failed to log request", e);
         }
     }
+	
+	@XmlRootElement
+	public static final class StampImageParameters {
+	    private List<SignatureImageParameters> parameters;
+
+        public List<SignatureImageParameters> getParameters() {
+            return parameters;
+        }
+
+        public void setParameters(List<SignatureImageParameters> parameters) {
+            this.parameters = parameters;
+        }
+	}
 }
