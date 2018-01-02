@@ -13,6 +13,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 
+import com.logsentinel.LogSentinelClient;
+import com.logsentinel.LogSentinelClientBuilder;
+
 import eu.europa.esig.dss.asic.signature.ASiCWithCAdESService;
 import eu.europa.esig.dss.asic.signature.ASiCWithXAdESService;
 import eu.europa.esig.dss.cades.signature.CAdESService;
@@ -35,6 +38,7 @@ import eu.europa.esig.dss.token.RemoteSignatureTokenConnectionImpl;
 import eu.europa.esig.dss.tsl.TrustedListsCertificateSource;
 import eu.europa.esig.dss.tsl.service.TSLRepository;
 import eu.europa.esig.dss.tsl.service.TSLValidationJob;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.validation.CommonCertificateVerifier;
 import eu.europa.esig.dss.validation.RemoteDocumentValidationService;
@@ -86,6 +90,18 @@ public class DSSBeanConfig {
 	@Value("${pdf.signature.image.dir}")
 	private String signatureImageDir;
 
+	@Value("${logsentinel.organization.id}")
+    private String logsentinelOrgId;
+	
+	@Value("${logsentinel.secret}")
+    private String logsentinelSecret;
+	
+	@Value("${logsentinel.app.id}")
+    private String logsentinelAppId;
+	
+	@Value("${logsentinel.url}")
+    private String logsentinelUrl;
+	
 	@Autowired
 	private DataSource dataSource;
 
@@ -274,6 +290,21 @@ public class DSSBeanConfig {
 		validationJob.setCheckLOTLSignature(true);
 		validationJob.setCheckTSLSignatures(true);
 		return validationJob;
+	}
+	
+	@Bean
+	public LogSentinelClient logSentinelClient() {
+	    if (Utils.isStringBlank(logsentinelOrgId)) {
+	        return null;
+	    }
+	    
+	    LogSentinelClientBuilder builder = new LogSentinelClientBuilder()
+	            .setBasePath(logsentinelUrl)
+	            .setApplicationId(logsentinelAppId)
+	            .setOrganizationId(logsentinelOrgId)
+	            .setSecret(logsentinelSecret);
+	    
+	    return builder.build();
 	}
 
 }
