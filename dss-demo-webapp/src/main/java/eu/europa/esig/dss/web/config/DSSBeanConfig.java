@@ -90,16 +90,16 @@ public class DSSBeanConfig {
 	@Value("${pdf.signature.image.dir}")
 	private String signatureImageDir;
 
-	@Value("${logsentinel.organization.id}")
+    @Value("${logsentinel.organization.id}")
     private String logsentinelOrgId;
-	
-	@Value("${logsentinel.secret}")
+
+    @Value("${logsentinel.secret}")
     private String logsentinelSecret;
-	
-	@Value("${logsentinel.app.id}")
+
+    @Value("${logsentinel.app.id}")
     private String logsentinelAppId;
-	
-	@Value("${logsentinel.url}")
+
+    @Value("${logsentinel.url}")
     private String logsentinelUrl;
 	
 	@Autowired

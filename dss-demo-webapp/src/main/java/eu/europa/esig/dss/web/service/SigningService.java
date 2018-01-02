@@ -119,7 +119,7 @@ public class SigningService {
 
 	private Unmarshaller createJAXBUnmarshaller() {
         try {
-            return JAXBContext.newInstance(SignatureImageParameters.class).createUnmarshaller();
+            return JAXBContext.newInstance(SignatureImageParameters.class, StampImageParameters.class).createUnmarshaller();
         } catch (JAXBException e) {
             throw new RuntimeException(e);
         }
