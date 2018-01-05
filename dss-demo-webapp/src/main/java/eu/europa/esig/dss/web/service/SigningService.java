@@ -23,6 +23,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.logsentinel.ApiCallbackAdapter;
@@ -92,6 +93,9 @@ public class SigningService {
 	
 	@Autowired(required=false)
 	private LogSentinelClient logSentinelClient;
+	
+    @Value("${logsentinel.include.names}")
+    private boolean logsentinelIncludeNames;
 	
 	private Unmarshaller jaxbUnmarshaller = createJAXBUnmarshaller();
 
@@ -317,9 +321,6 @@ public class SigningService {
         	    
         	    
         	} else { // sample parameters without full customizability
-        	    if (image == null) {
-        	        throw new IllegalArgumentException("Image should be provided in case XML is missing");
-        	    }
             	if (!form.getStampImagePages().isEmpty()) {
             		SignatureImageParameters stampParams = new SignatureImageParameters();
             		stampParams.setPagePlacement(VisualSignaturePagePlacement.RANGE);
@@ -334,14 +335,15 @@ public class SigningService {
             		                .stream()
             						.map(Integer::parseInt).collect(Collectors.toList()));
             		stampParams.setImage(image);
-            		try {
-            			BufferedImage img = ImageIO.read(image.openStream());
-            			stampParams.setWidth(img.getWidth());
-            			stampParams.setHeight(img.getHeight());
-            		} catch (IOException e) {
-            			throw new IllegalStateException("Failed to parse image", e);
+            		if (image != null) {
+                		try {
+                			BufferedImage img = ImageIO.read(image.openStream());
+                			stampParams.setWidth(img.getWidth());
+                			stampParams.setHeight(img.getHeight());
+                		} catch (IOException e) {
+                			throw new IllegalStateException("Failed to parse image", e);
+                		}
             		}
-            		
             		padesParams.setStampImageParameters(Collections.singletonList(stampParams));
             	}
             	
@@ -417,14 +419,18 @@ public class SigningService {
         } catch (InvalidNameException ex) {
             throw new DSSException(ex);
         }
-        String signerNames = ldapName.getRdns().stream()
-                .filter(rdn -> rdn.getType().equals("CN"))
-                .map(Rdn::getValue)
-                .map(String.class::cast)
-                .findFirst().orElse("");
-                
+        
         ActorData actor = new ActorData(params.getSigningCertificate().getCertificate().getSerialNumber().toString());
-        actor.setActorDisplayName(signerNames);
+        
+        if (logsentinelIncludeNames) {
+            String signerNames = ldapName.getRdns().stream()
+                    .filter(rdn -> rdn.getType().equals("CN"))
+                    .map(Rdn::getValue)
+                    .map(String.class::cast)
+                    .findFirst().orElse("");
+                    
+            actor.setActorDisplayName(signerNames);
+        }
         
         ActionData action = new ActionData(signedDocument.getDigest(params.getDigestAlgorithm()));
         action.setAction("SIGN");

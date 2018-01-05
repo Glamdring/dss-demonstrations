@@ -101,6 +101,9 @@ public class DSSBeanConfig {
 
     @Value("${logsentinel.url}")
     private String logsentinelUrl;
+    
+    @Value("${logsentinel.include.names}")
+    private boolean logsentinelIncludeNames;
 	
 	@Autowired
 	private DataSource dataSource;
@@ -233,6 +236,8 @@ public class DSSBeanConfig {
 		service.setCadesService(cadesService());
 		service.setXadesService(xadesService());
 		service.setPadesService(padesService());
+		service.setLogSentinelClient(logSentinelClient());
+		service.setLogsentinelIncludeNames(logsentinelIncludeNames);
 		return service;
 	}
 
@@ -242,6 +247,8 @@ public class DSSBeanConfig {
 		service.setAsicWithCAdESService(asicWithCadesService());
 		service.setAsicWithXAdESService(asicWithXadesService());
 		service.setXadesService(xadesService());
+		service.setLogSentinelClient(logSentinelClient());
+        service.setLogsentinelIncludeNames(logsentinelIncludeNames);
 		return service;
 	}
 
