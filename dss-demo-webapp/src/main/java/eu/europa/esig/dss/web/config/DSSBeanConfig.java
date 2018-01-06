@@ -1,5 +1,6 @@
 package eu.europa.esig.dss.web.config;
 
+import java.io.File;
 import java.io.IOException;
 
 import javax.sql.DataSource;
@@ -11,6 +12,9 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
+
+import com.logsentinel.LogSentinelClient;
+import com.logsentinel.LogSentinelClientBuilder;
 
 import eu.europa.esig.dss.asic.signature.ASiCWithCAdESService;
 import eu.europa.esig.dss.asic.signature.ASiCWithXAdESService;
@@ -34,6 +38,7 @@ import eu.europa.esig.dss.token.RemoteSignatureTokenConnectionImpl;
 import eu.europa.esig.dss.tsl.TrustedListsCertificateSource;
 import eu.europa.esig.dss.tsl.service.TSLRepository;
 import eu.europa.esig.dss.tsl.service.TSLValidationJob;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.validation.CommonCertificateVerifier;
 import eu.europa.esig.dss.validation.RemoteDocumentValidationService;
@@ -42,7 +47,7 @@ import eu.europa.esig.dss.x509.tsp.TSPSource;
 import eu.europa.esig.dss.xades.signature.XAdESService;
 
 @Configuration
-@PropertySource("classpath:dss.properties")
+@PropertySource(value= {"classpath:dss.properties", "file:${dss.config.path}/dss.properties"}, ignoreResourceNotFound=true)
 @ComponentScan(basePackages = { "eu.europa.esig.dss" })
 public class DSSBeanConfig {
 
@@ -81,14 +86,32 @@ public class DSSBeanConfig {
 
 	@Value("${dss.server.signing.keystore.password}")
 	private String serverSigningKeystorePassword;
+	
+	@Value("${pdf.signature.image.dir}")
+	private String signatureImageDir;
 
+    @Value("${logsentinel.organization.id}")
+    private String logsentinelOrgId;
+
+    @Value("${logsentinel.secret}")
+    private String logsentinelSecret;
+
+    @Value("${logsentinel.app.id}")
+    private String logsentinelAppId;
+
+    @Value("${logsentinel.url}")
+    private String logsentinelUrl;
+    
+    @Value("${logsentinel.include.names}")
+    private boolean logsentinelIncludeNames;
+	
 	@Autowired
 	private DataSource dataSource;
 
 	// can be null
 	@Autowired(required = false)
 	private ProxyConfig proxyConfig;
-
+	
 	@Bean
 	public CommonsDataLoader dataLoader() {
 		CommonsDataLoader dataLoader = new CommonsDataLoader();
@@ -187,6 +210,7 @@ public class DSSBeanConfig {
 	public PAdESService padesService() throws Exception {
 		PAdESService service = new PAdESService(certificateVerifier());
 		service.setTspSource(tspSource());
+		service.setSignatureImageDir(new File(signatureImageDir));
 		return service;
 	}
 
@@ -212,6 +236,8 @@ public class DSSBeanConfig {
 		service.setCadesService(cadesService());
 		service.setXadesService(xadesService());
 		service.setPadesService(padesService());
+		service.setLogSentinelClient(logSentinelClient());
+		service.setLogsentinelIncludeNames(logsentinelIncludeNames);
 		return service;
 	}
 
@@ -221,6 +247,8 @@ public class DSSBeanConfig {
 		service.setAsicWithCAdESService(asicWithCadesService());
 		service.setAsicWithXAdESService(asicWithXadesService());
 		service.setXadesService(xadesService());
+		service.setLogSentinelClient(logSentinelClient());
+        service.setLogsentinelIncludeNames(logsentinelIncludeNames);
 		return service;
 	}
 
@@ -269,6 +297,21 @@ public class DSSBeanConfig {
 		validationJob.setCheckLOTLSignature(true);
 		validationJob.setCheckTSLSignatures(true);
 		return validationJob;
+	}
+	
+	@Bean
+	public LogSentinelClient logSentinelClient() {
+	    if (Utils.isStringBlank(logsentinelOrgId)) {
+	        return null;
+	    }
+	    
+	    LogSentinelClientBuilder builder = new LogSentinelClientBuilder()
+	            .setBasePath(logsentinelUrl)
+	            .setApplicationId(logsentinelAppId)
+	            .setOrganizationId(logsentinelOrgId)
+	            .setSecret(logsentinelSecret);
+	    
+	    return builder.build();
 	}
 
 }

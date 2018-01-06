@@ -128,6 +128,64 @@
     </div>
 </div>
 
+<div class="form-group" th:fragment="field-signature-image">
+    <label for="signatureImage" class="col-sm-2 control-label" th:text="#{label.signature-image}"></label>
+    <div class="col-sm-5">
+    	<input type="file" name="signatureImage" id="signatureImage" /> 
+    </div>
+    <div class="col-xs-4">
+     	<p th:if="${#fields.hasErrors('signatureImage')}" th:errors="*{signatureImage}" class="text-danger">Error</p>
+    </div>
+</div>
+
+<div class="form-group" th:fragment="field-stamp-image-pages">
+    <label for="stampImagePages" class="col-sm-2 control-label" th:text="#{label.stamp-image-pages}"></label>
+    <div class="col-sm-5">
+	    <label class="text-inline"> 
+		    <input type="text" th:field="*{stampImagePages}" th:value="${stampImagePages}" th:text="${stampImagePageRange}" />
+	    </label>
+    </div>
+    <div class="col-xs-4">
+    	<p th:if="${#fields.hasErrors('stampImagePages')}" th:errors="*{stampImagePages}" class="text-danger">Error</p>
+    </div>
+</div>
+
+<div class="form-group" th:fragment="field-signature-image-page">
+    <label for="signatureImagePage" class="col-sm-2 control-label" th:text="#{label.signature-image-page}"></label>
+    <div class="col-sm-5">
+	    <label class="text-inline"> 
+		    <input type="text" th:field="*{signatureImagePage}" th:value="${signatureImagePage}" th:text="${signatureImagePage}" />
+	    </label>
+    </div>
+    <div class="col-xs-4">
+    	<p th:if="${#fields.hasErrors('signatureImagePage')}" th:errors="*{signatureImagePage}" class="text-danger">Error</p>
+    </div>
+</div>
+
+<div class="form-group" th:fragment="field-signature-image-xml">
+    <label for="signatureImageXml" class="col-sm-2 control-label" th:text="#{label.signature-image-xml}"></label>
+    <div class="col-sm-5">
+        <label class="text-inline"> 
+            <textarea th:field="*{signatureImageXml}" th:value="${signatureImageXml}" th:text="${signatureImageXml}" rows="5"></textarea>
+        </label>
+    </div>
+    <div class="col-xs-4">
+        <p th:if="${#fields.hasErrors('signatureImageXml')}" th:errors="*{signatureImageXml}" class="text-danger">Error</p>
+    </div>
+</div>
+
+<div class="form-group" th:fragment="field-stamp-image-xml">
+    <label for="signatureImageXml" class="col-sm-2 control-label" th:text="#{label.stamp-image-xml}"></label>
+    <div class="col-sm-5">
+        <label class="text-inline"> 
+            <textarea th:field="*{stampImageXml}" th:value="${stampImageXml}" th:text="${stampImageXml}" rows="5"></textarea>
+        </label>
+    </div>
+    <div class="col-xs-4">
+        <p th:if="${#fields.hasErrors('stampImageXml')}" th:errors="*{stampImageXml}" class="text-danger">Error</p>
+    </div>
+</div>
+
 <div class="form-group" id="sign-expired-block" th:fragment="field-sign-expired">
     <label for="signWithExpiredCertificate" class="col-sm-2 control-label" th:text="#{label.allow.expired.certificate}"></label>
     <div class="col-sm-4">

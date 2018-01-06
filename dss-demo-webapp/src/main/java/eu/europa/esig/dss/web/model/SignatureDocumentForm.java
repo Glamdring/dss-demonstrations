@@ -16,7 +16,7 @@ public class SignatureDocumentForm extends AbstractSignatureForm {
 	private SignaturePackaging signaturePackaging;
 
 	private ASiCContainerType containerType;
-
+	
 	public MultipartFile getDocumentToSign() {
 		return documentToSign;
 	}
@@ -40,8 +40,8 @@ public class SignatureDocumentForm extends AbstractSignatureForm {
 	public void setContainerType(ASiCContainerType containerType) {
 		this.containerType = containerType;
 	}
-
-	@AssertTrue(message = "{error.to.sign.file.mandatory}")
+	
+    @AssertTrue(message = "{error.to.sign.file.mandatory}")
 	public boolean isDocumentToSign() {
 		return (documentToSign != null) && (!documentToSign.isEmpty());
 	}

@@ -5,6 +5,8 @@ import java.util.List;
 
 import javax.validation.constraints.NotNull;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import eu.europa.esig.dss.DigestAlgorithm;
 import eu.europa.esig.dss.EncryptionAlgorithm;
 import eu.europa.esig.dss.SignatureForm;
@@ -36,6 +38,16 @@ public abstract class AbstractSignatureForm {
 
 	private String base64SignatureValue;
 
+	private String stampImagePages;
+	
+	private String signatureImagePage;
+	
+	private MultipartFile signatureImage;
+	
+	private String signatureImageXml;
+	
+	private String stampImageXml;
+	
 	public boolean isNexuDetected() {
 		return nexuDetected;
 	}
@@ -115,5 +127,44 @@ public abstract class AbstractSignatureForm {
 	public void setBase64SignatureValue(String base64SignatureValue) {
 		this.base64SignatureValue = base64SignatureValue;
 	}
+	
+	public String getStampImagePages() {
+		return stampImagePages;
+	}
 
+	public void setStampImagePages(String stampImagePages) {
+		this.stampImagePages = stampImagePages;
+	}
+
+	public String getSignatureImagePage() {
+		return signatureImagePage;
+	}
+
+	public void setSignatureImagePage(String signatureImagePage) {
+		this.signatureImagePage = signatureImagePage;
+	}
+
+	public MultipartFile getSignatureImage() {
+		return signatureImage;
+	}
+
+	public void setSignatureImage(MultipartFile signatureImage) {
+		this.signatureImage = signatureImage;
+	}
+
+    public String getSignatureImageXml() {
+        return signatureImageXml;
+    }
+
+    public void setSignatureImageXml(String signatureImageXml) {
+        this.signatureImageXml = signatureImageXml;
+    }
+
+    public String getStampImageXml() {
+        return stampImageXml;
+    }
+
+    public void setStampImageXml(String stampImageXml) {
+        this.stampImageXml = stampImageXml;
+    }
 }
