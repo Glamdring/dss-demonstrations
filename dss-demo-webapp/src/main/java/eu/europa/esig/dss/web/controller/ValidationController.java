@@ -1,7 +1,9 @@
 package eu.europa.esig.dss.web.controller;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,11 +24,18 @@ import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
 import eu.europa.esig.dss.DSSDocument;
+import eu.europa.esig.dss.InMemoryDocument;
 import eu.europa.esig.dss.MimeType;
+import eu.europa.esig.dss.SignatureAlgorithm;
+import eu.europa.esig.dss.SignatureValue;
+import eu.europa.esig.dss.ToBeSigned;
+import eu.europa.esig.dss.pades.PAdESSignatureParameters;
+import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.validation.SignedDocumentValidator;
@@ -65,6 +74,9 @@ public class ValidationController {
 	@Autowired
 	private Resource defaultPolicy;
 
+	@Autowired
+    private PAdESService padesService;
+	
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
 		binder.registerCustomEditor(ValidationLevel.class, new EnumPropertyEditor(ValidationLevel.class));
@@ -155,33 +167,59 @@ public class ValidationController {
     }
 
 	@RequestMapping(value = "/download-simple-report")
-	public void downloadSimpleReport(HttpSession session, HttpServletResponse response) {
+	public void downloadSimpleReport(@RequestParam(value = "sign", required = false, defaultValue = "false") boolean sign,
+	        HttpSession session, HttpServletResponse response) {
 		try {
 			String simpleReport = (String) session.getAttribute(SIMPLE_REPORT_ATTRIBUTE);
 
 			response.setContentType(MimeType.PDF.getMimeTypeString());
 			response.setHeader("Content-Disposition", "attachment; filename=DSS-Simple-report.pdf");
 
-			fopService.generateSimpleReport(simpleReport, response.getOutputStream());
+			if (sign) {
+			    ByteArrayOutputStream out = new ByteArrayOutputStream();
+			    fopService.generateSimpleReport(simpleReport, out);
+			    signReport(out.toByteArray(), response.getOutputStream());
+			} else {
+			    fopService.generateSimpleReport(simpleReport, response.getOutputStream());
+			}
+			
 		} catch (Exception e) {
 			logger.error("An error occured while generating pdf for simple report : " + e.getMessage(), e);
 		}
 	}
 
-	@RequestMapping(value = "/download-detailed-report")
-	public void downloadDetailedReport(HttpSession session, HttpServletResponse response) {
+    @RequestMapping(value = "/download-detailed-report")
+	public void downloadDetailedReport(@RequestParam(value = "sign", required = false, defaultValue = "false") boolean sign, 
+	        HttpSession session, HttpServletResponse response) {
 		try {
 			String detailedReport = (String) session.getAttribute(DETAILED_REPORT_ATTRIBUTE);
 
 			response.setContentType(MimeType.PDF.getMimeTypeString());
 			response.setHeader("Content-Disposition", "attachment; filename=DSS-Detailed-report.pdf");
 
-			fopService.generateDetailedReport(detailedReport, response.getOutputStream());
+			if (sign) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                fopService.generateDetailedReport(detailedReport, out);
+                signReport(out.toByteArray(), response.getOutputStream());
+            } else {
+                fopService.generateDetailedReport(detailedReport, response.getOutputStream());
+            }
 		} catch (Exception e) {
 			logger.error("An error occured while generating pdf for detailed report : " + e.getMessage(), e);
 		}
 	}
 
+    private void signReport(byte[] byteArray, OutputStream outputStream) {
+        PAdESSignatureParameters params = new PAdESSignatureParameters();
+        //TODO params
+        DSSDocument document = new InMemoryDocument(byteArray);
+        ToBeSigned toBeSigned = padesService.getDataToSign(document, params);
+        SignatureValue signature = new SignatureValue();
+        signature.setAlgorithm(SignatureAlgorithm.RSA_SHA512);
+        // signature.setValue(value); TODO
+        padesService.signDocument(document, params, signature);
+    }
+    
 	@ModelAttribute("validationLevels")
 	public ValidationLevel[] getValidationLevels() {
 		return new ValidationLevel[] { ValidationLevel.BASIC_SIGNATURES, ValidationLevel.LONG_TERM_DATA, ValidationLevel.ARCHIVAL_DATA };
