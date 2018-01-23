@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+    <head th:replace="template :: header"></head>
+	<body>
+		<div class="container">
+			<div class="row">
+				<div class="col-md-9">
+					<h2 th:text="#{label.validate}"></h2>
+					
+					<form method="post" class="form-horizontal" enctype="multipart/form-data" th:action="@{/validation/embed}" th:object="${validationForm}">
+					
+					   	<div th:replace="fields::field-signed-file"></div>
+											
+						<div th:replace="fields::field-original-file"></div>
+					
+					    <input type="hidden" value="ARCHIVAL_DATA" th:field="*{validationLevel}" />
+                        
+                        <input type="hidden" value="true" th:field="*{defaultPolicy}" />
+                        
+					    <div class="form-group">
+					        <div class="col-sm-offset-2 col-sm-10">
+					            <button type="submit" class="btn btn-primary" th:text="#{label.submit}"></button>
+					            <button type="reset" class="btn" th:text="#{label.clear}"></button>
+					        </div>
+					    </div>   
+					</form>
+
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

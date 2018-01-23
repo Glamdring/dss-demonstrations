@@ -46,7 +46,9 @@ public class ValidationController {
 	private static final Logger logger = LoggerFactory.getLogger(ValidationController.class);
 
 	private static final String VALIDATION_TILE = "validation";
+	private static final String VALIDATION_EMBED_TILE = "validation-embed";
 	private static final String VALIDATION_RESULT_TILE = "validation_result";
+	private static final String VALIDATION_RESULT_EMBED_TILE = "validation_result-embed";
 
 	private static final String SIMPLE_REPORT_ATTRIBUTE = "simpleReportXml";
 	private static final String DETAILED_REPORT_ATTRIBUTE = "detailedReportXml";
@@ -76,7 +78,7 @@ public class ValidationController {
 		model.addAttribute("validationForm", validationForm);
 		return VALIDATION_TILE;
 	}
-
+	
 	@RequestMapping(method = RequestMethod.POST)
 	public String validate(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, Model model) {
 		if (result.hasErrors()) {
@@ -131,6 +133,26 @@ public class ValidationController {
 
 		return VALIDATION_RESULT_TILE;
 	}
+	
+	@RequestMapping(value = "/embed", method = RequestMethod.GET)
+    public String showValidationEmbedForm(Model model, HttpServletRequest request) {
+        ValidationForm validationForm = new ValidationForm();
+        validationForm.setValidationLevel(ValidationLevel.ARCHIVAL_DATA);
+        validationForm.setDefaultPolicy(true);
+        model.addAttribute("validationForm", validationForm);
+        return VALIDATION_EMBED_TILE;
+    }
+
+    @RequestMapping(value = "/embed", method = RequestMethod.POST)
+    public String validateEmbed(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, Model model) {
+        if (result.hasErrors()) {
+            return VALIDATION_RESULT_EMBED_TILE;
+        }
+        
+        validate(validationForm, result, model);
+        
+        return VALIDATION_RESULT_EMBED_TILE;
+    }
 
 	@RequestMapping(value = "/download-simple-report")
 	public void downloadSimpleReport(HttpSession session, HttpServletResponse response) {
