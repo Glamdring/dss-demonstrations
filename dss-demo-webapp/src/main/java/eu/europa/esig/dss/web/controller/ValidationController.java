@@ -1,10 +1,14 @@
 package eu.europa.esig.dss.web.controller;
 
+import java.awt.Font;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.Signature;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
@@ -29,9 +33,20 @@ import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
 import eu.europa.esig.dss.DSSDocument;
+import eu.europa.esig.dss.DigestAlgorithm;
 import eu.europa.esig.dss.InMemoryDocument;
 import eu.europa.esig.dss.MimeType;
+import eu.europa.esig.dss.RemoteDocument;
 import eu.europa.esig.dss.SignatureAlgorithm;
+import eu.europa.esig.dss.SignatureImagePageRange;
+import eu.europa.esig.dss.SignatureImageParameters;
+import eu.europa.esig.dss.SignatureImageParameters.SignerTextImageVerticalAlignment;
+import eu.europa.esig.dss.SignatureImageParameters.VisualSignaturePagePlacement;
+import eu.europa.esig.dss.SignatureImageTextParameters.SignerPosition;
+import eu.europa.esig.dss.SignatureImageTextParameters.SignerTextHorizontalAlignment;
+import eu.europa.esig.dss.SignatureImageTextParameters;
+import eu.europa.esig.dss.SignatureLevel;
+import eu.europa.esig.dss.SignaturePackaging;
 import eu.europa.esig.dss.SignatureValue;
 import eu.europa.esig.dss.ToBeSigned;
 import eu.europa.esig.dss.pades.PAdESSignatureParameters;
@@ -211,6 +226,26 @@ public class ValidationController {
 
     private void signReport(byte[] byteArray, OutputStream outputStream) {
         PAdESSignatureParameters params = new PAdESSignatureParameters();
+        params.bLevel().setTrustAnchorBPPolicy(true);
+        params.bLevel().setSigningDate(new Date());
+        params.setDigestAlgorithm(DigestAlgorithm.SHA256);
+        params.setSignWithExpiredCertificate(false);
+        params.setSignatureLevel(SignatureLevel.PAdES_BASELINE_LTA);
+        params.setSignaturePackaging(SignaturePackaging.ENVELOPED);
+        
+        SignatureImageParameters stampParams = createImageParams();
+        stampParams.setPagePlacement(VisualSignaturePagePlacement.RANGE);
+        stampParams.setPageRange(new SignatureImagePageRange());
+        stampParams.getPageRange().setAll(true);
+        stampParams.getPageRange().setExcludeLast(true);
+        stampParams.getPageRange().setExcludeLastCount(1);
+        params.setStampImageParameters(Collections.singletonList(stampParams));
+        
+        SignatureImageParameters signatureParams = createImageParams();
+        signatureParams.setPagePlacement(VisualSignaturePagePlacement.SINGLE_PAGE);
+        signatureParams.setPage(-1);
+        params.setSignatureImageParameters(signatureParams);
+        
         //TODO params
         DSSDocument document = new InMemoryDocument(byteArray);
         ToBeSigned toBeSigned = padesService.getDataToSign(document, params);
@@ -218,6 +253,32 @@ public class ValidationController {
         signature.setAlgorithm(SignatureAlgorithm.RSA_SHA512);
         // signature.setValue(value); TODO
         padesService.signDocument(document, params, signature);
+    }
+
+    private SignatureImageParameters createImageParams() {
+        SignatureImageParameters imageParams = new SignatureImageParameters();
+        imageParams.setImageDocument(new RemoteDocument(null, null, "Evrotrust_background.png"));
+        imageParams.setxAxis(230);
+        imageParams.setyAxis(-67);
+        imageParams.setWidth(140);
+        imageParams.setZoom(100);
+        imageParams.setSignerTextImageVerticalAlignment(SignerTextImageVerticalAlignment.MIDDLE);
+        imageParams.setTextParameters(new SignatureImageTextParameters());
+        imageParams.getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
+        imageParams.getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
+        imageParams.getTextParameters().setRightPadding(4);
+        imageParams.getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
+        imageParams.getTextParameters().setFont(new Font("helvetica", Font.PLAIN, 18));
+        
+        imageParams.setTextRightParameters(new SignatureImageTextParameters());
+        imageParams.getTextRightParameters().setText("Digitally Signed with a\nQualified E-Seal.\nQualified Time-stamped.\n" + 
+                "Date: %DateTimeWithTimeZone%\nCompliant with eIDAS.");
+        imageParams.getTextRightParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
+        imageParams.getTextRightParameters().setSignerNamePosition(SignerPosition.LEFT);
+        imageParams.getTextRightParameters().setFont(new Font("helvetica", Font.PLAIN, 12));
+        imageParams.setDateFormat("dd.MM.yyyy HH:mm:ss XXX''");
+        
+        return imageParams;
     }
     
 	@ModelAttribute("validationLevels")
