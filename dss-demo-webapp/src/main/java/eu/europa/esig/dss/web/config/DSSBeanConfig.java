@@ -15,6 +15,8 @@ import org.springframework.core.io.ClassPathResource;
 
 import com.logsentinel.LogSentinelClient;
 import com.logsentinel.LogSentinelClientBuilder;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 
 import eu.europa.esig.dss.asic.signature.ASiCWithCAdESService;
 import eu.europa.esig.dss.asic.signature.ASiCWithXAdESService;
@@ -105,6 +107,9 @@ public class DSSBeanConfig {
     @Value("${logsentinel.include.names}")
     private boolean logsentinelIncludeNames;
 	
+    @Value("${rabbitmq.uri")
+    private String rabbitMqUri;
+    
 	@Autowired
 	private DataSource dataSource;
 
@@ -297,6 +302,16 @@ public class DSSBeanConfig {
 		validationJob.setCheckLOTLSignature(true);
 		validationJob.setCheckTSLSignatures(true);
 		return validationJob;
+	}
+	
+	
+	@Bean(destroyMethod = "close")
+	private Connection amqpConnection() throws Exception {
+	    ConnectionFactory factory = new ConnectionFactory();
+	    factory.setUri(rabbitMqUri);
+	    factory.setAutomaticRecoveryEnabled(true);
+	    
+	    return factory.newConnection();
 	}
 	
 	@Bean

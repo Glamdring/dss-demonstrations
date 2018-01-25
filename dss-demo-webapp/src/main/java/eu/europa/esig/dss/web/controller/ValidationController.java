@@ -1,24 +1,33 @@
 package eu.europa.esig.dss.web.controller;
 
 import java.awt.Font;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.security.Signature;
+import java.security.cert.CertPath;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -32,6 +41,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.RpcClient;
+
 import eu.europa.esig.dss.DSSDocument;
 import eu.europa.esig.dss.DigestAlgorithm;
 import eu.europa.esig.dss.InMemoryDocument;
@@ -42,9 +55,9 @@ import eu.europa.esig.dss.SignatureImagePageRange;
 import eu.europa.esig.dss.SignatureImageParameters;
 import eu.europa.esig.dss.SignatureImageParameters.SignerTextImageVerticalAlignment;
 import eu.europa.esig.dss.SignatureImageParameters.VisualSignaturePagePlacement;
+import eu.europa.esig.dss.SignatureImageTextParameters;
 import eu.europa.esig.dss.SignatureImageTextParameters.SignerPosition;
 import eu.europa.esig.dss.SignatureImageTextParameters.SignerTextHorizontalAlignment;
-import eu.europa.esig.dss.SignatureImageTextParameters;
 import eu.europa.esig.dss.SignatureLevel;
 import eu.europa.esig.dss.SignaturePackaging;
 import eu.europa.esig.dss.SignatureValue;
@@ -61,6 +74,7 @@ import eu.europa.esig.dss.web.editor.EnumPropertyEditor;
 import eu.europa.esig.dss.web.model.ValidationForm;
 import eu.europa.esig.dss.web.service.FOPService;
 import eu.europa.esig.dss.web.service.XSLTService;
+import eu.europa.esig.dss.x509.CertificateToken;
 
 @Controller
 @SessionAttributes({ "simpleReportXml", "detailedReportXml" })
@@ -91,6 +105,28 @@ public class ValidationController {
 
 	@Autowired
     private PAdESService padesService;
+	
+	@Value("${validation.signing.certificate}")
+    private String signingCertificateBase64;
+	
+	private X509Certificate signingCertificate;
+	private CertPath signingCertificateChain;
+	
+	@Autowired
+	private Connection amqpConnection;
+	
+	@Value("${rabbitmq.exchange")
+	private String rabbitMqExchange;
+	
+	@Value("${rabbitmq.routingKey")
+    private String rabbitMqRoutingKey;
+	
+	@PostConstruct
+	public void init() throws IOException, CertificateException {
+	    ByteArrayInputStream in = new ByteArrayInputStream(Base64.getDecoder().decode(signingCertificateBase64));
+	    signingCertificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(in);
+	    signingCertificateChain = CertificateFactory.getInstance("X.509").generateCertPath(in);
+	}
 	
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
@@ -224,7 +260,7 @@ public class ValidationController {
 		}
 	}
 
-    private void signReport(byte[] byteArray, OutputStream outputStream) {
+    private void signReport(byte[] byteArray, OutputStream outputStream) throws IOException {
         PAdESSignatureParameters params = new PAdESSignatureParameters();
         params.bLevel().setTrustAnchorBPPolicy(true);
         params.bLevel().setSigningDate(new Date());
@@ -233,6 +269,9 @@ public class ValidationController {
         params.setSignatureLevel(SignatureLevel.PAdES_BASELINE_LTA);
         params.setSignaturePackaging(SignaturePackaging.ENVELOPED);
         
+        params.setCertificateChain(signingCertificateChain
+                .getCertificates().stream().map(c -> new CertificateToken((X509Certificate) c)).collect(Collectors.toList()));
+        params.setSigningCertificate(new CertificateToken(signingCertificate));
         SignatureImageParameters stampParams = createImageParams();
         stampParams.setPagePlacement(VisualSignaturePagePlacement.RANGE);
         stampParams.setPageRange(new SignatureImagePageRange());
@@ -246,13 +285,28 @@ public class ValidationController {
         signatureParams.setPage(-1);
         params.setSignatureImageParameters(signatureParams);
         
-        //TODO params
         DSSDocument document = new InMemoryDocument(byteArray);
         ToBeSigned toBeSigned = padesService.getDataToSign(document, params);
         SignatureValue signature = new SignatureValue();
         signature.setAlgorithm(SignatureAlgorithm.RSA_SHA512);
-        // signature.setValue(value); TODO
-        padesService.signDocument(document, params, signature);
+        
+        byte[] signatureValue = signRemotely(toBeSigned.getBytes());
+        signature.setValue(signatureValue);
+        
+        DSSDocument signed = padesService.signDocument(document, params, signature);
+        IOUtils.copy(signed.openStream(), outputStream);
+    }
+
+    private byte[] signRemotely(byte[] bytes) {
+        try {
+            Channel channel = amqpConnection.createChannel();
+            RpcClient rpcClient = new RpcClient(channel, rabbitMqExchange, rabbitMqRoutingKey);
+            return rpcClient.primitiveCall(bytes);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+            
+        }
+        
     }
 
     private SignatureImageParameters createImageParams() {
