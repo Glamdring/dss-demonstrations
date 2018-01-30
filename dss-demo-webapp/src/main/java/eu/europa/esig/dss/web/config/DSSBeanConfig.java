@@ -1,10 +1,15 @@
 package eu.europa.esig.dss.web.config;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.KeyStore;
 
 import javax.sql.DataSource;
 
+import org.apache.http.ssl.SSLContexts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -53,6 +58,8 @@ import eu.europa.esig.dss.xades.signature.XAdESService;
 @ComponentScan(basePackages = { "eu.europa.esig.dss" })
 public class DSSBeanConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(DSSBeanConfig.class);
+    
 	@Value("${default.validation.policy}")
 	private String defaultValidationPolicy;
 
@@ -107,8 +114,14 @@ public class DSSBeanConfig {
     @Value("${logsentinel.include.names}")
     private boolean logsentinelIncludeNames;
 	
-    @Value("${rabbitmq.uri")
+    @Value("${rabbitmq.uri}")
     private String rabbitMqUri;
+    
+    @Value("${rabbitmq.client.keystore.path}")
+    private String rabbitMqClientKeystorePath;
+    
+    @Value("${rabbitmq.client.keystore.pass}")
+    private String rabbitMqClientKeystorePass;
     
 	@Autowired
 	private DataSource dataSource;
@@ -306,12 +319,27 @@ public class DSSBeanConfig {
 	
 	
 	@Bean(destroyMethod = "close")
-	private Connection amqpConnection() throws Exception {
+	public Connection amqpConnection() throws Exception {
 	    ConnectionFactory factory = new ConnectionFactory();
-	    factory.setUri(rabbitMqUri);
 	    factory.setAutomaticRecoveryEnabled(true);
-	    
-	    return factory.newConnection();
+	    KeyStore ks = KeyStore.getInstance("PKCS12");
+	    try {
+    	    ks.load(new FileInputStream(rabbitMqClientKeystorePath), rabbitMqClientKeystorePass.toCharArray());
+    	    factory.useSslProtocol(SSLContexts.custom()
+    	            .useProtocol("TLSv1.2")
+    	            .loadKeyMaterial(ks, rabbitMqClientKeystorePass.toCharArray())
+    	            .build());
+    	    
+	    } catch (Exception ex) {
+	        logger.warn("Failed to load amqp client certificate", ex);
+	    }
+	    factory.setUri(rabbitMqUri);
+	    try {
+	        return factory.newConnection();
+	    } catch (Exception ex) {
+	        logger.warn("Failed to connect to rabbitmq", ex);
+	        return null;
+	    }
 	}
 	
 	@Bean

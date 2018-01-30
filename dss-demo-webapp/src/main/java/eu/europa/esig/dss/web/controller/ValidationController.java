@@ -1,8 +1,8 @@
 package eu.europa.esig.dss.web.controller;
 
 import java.awt.Font;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,7 +11,6 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -107,7 +106,7 @@ public class ValidationController {
     private PAdESService padesService;
 	
 	@Value("${validation.signing.certificate}")
-    private String signingCertificateBase64;
+    private String signingCertificatePath;
 	
 	private X509Certificate signingCertificate;
 	private CertPath signingCertificateChain;
@@ -115,17 +114,20 @@ public class ValidationController {
 	@Autowired
 	private Connection amqpConnection;
 	
-	@Value("${rabbitmq.exchange")
+	@Value("${rabbitmq.exchange}")
 	private String rabbitMqExchange;
 	
-	@Value("${rabbitmq.routingKey")
+	@Value("${rabbitmq.routingKey}")
     private String rabbitMqRoutingKey;
 	
 	@PostConstruct
 	public void init() throws IOException, CertificateException {
-	    ByteArrayInputStream in = new ByteArrayInputStream(Base64.getDecoder().decode(signingCertificateBase64));
-	    signingCertificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(in);
-	    signingCertificateChain = CertificateFactory.getInstance("X.509").generateCertPath(in);
+	    try {
+    	    signingCertificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new FileInputStream(signingCertificatePath));
+    	    signingCertificateChain = CertificateFactory.getInstance("X.509").generateCertPath(new FileInputStream(signingCertificatePath));
+	    } catch (Exception ex) {
+	        logger.warn("Failed to find validation certificate from path " + signingCertificatePath, ex);
+	    }
 	}
 	
 	@InitBinder
@@ -269,9 +271,13 @@ public class ValidationController {
         params.setSignatureLevel(SignatureLevel.PAdES_BASELINE_LTA);
         params.setSignaturePackaging(SignaturePackaging.ENVELOPED);
         
-        params.setCertificateChain(signingCertificateChain
-                .getCertificates().stream().map(c -> new CertificateToken((X509Certificate) c)).collect(Collectors.toList()));
-        params.setSigningCertificate(new CertificateToken(signingCertificate));
+        if (signingCertificateChain != null) {
+            params.setCertificateChain(signingCertificateChain
+                    .getCertificates().stream().map(c -> new CertificateToken((X509Certificate) c)).collect(Collectors.toList()));
+        }
+        if (signingCertificate != null) {
+            params.setSigningCertificate(new CertificateToken(signingCertificate));
+        }
         SignatureImageParameters stampParams = createImageParams();
         stampParams.setPagePlacement(VisualSignaturePagePlacement.RANGE);
         stampParams.setPageRange(new SignatureImagePageRange());
