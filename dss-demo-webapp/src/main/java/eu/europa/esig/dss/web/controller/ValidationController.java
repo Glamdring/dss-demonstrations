@@ -322,7 +322,7 @@ public class ValidationController {
             RpcClient rpcClient = new RpcClient(channel, rabbitMqExchange, rabbitMqRoutingKey);
             logger.info("Calling RabbitMQ for remote signing");
             String hash = "hash"; //Base64.getEncoder().encodeToString(bytes);
-            String request = "{\"Hash\":" + hash + "\",\"SessionId\":\"1\"}";
+            String request = "{\"Hash\":\"" + hash + "\",\"SessionId\":\"1\"}";
             String response = rpcClient.stringCall(request);
             logger.info("Response received: " + response);
             return response.getBytes();
