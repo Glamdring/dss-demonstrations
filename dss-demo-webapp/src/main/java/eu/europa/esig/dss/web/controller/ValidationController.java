@@ -6,15 +6,18 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.security.cert.CertPath;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
@@ -105,11 +108,14 @@ public class ValidationController {
 	@Autowired
     private PAdESService padesService;
 	
-	@Value("${validation.signing.certificate}")
-    private String signingCertificatePath;
+	@Value("${validation.signing.certificate.jks}")
+    private String signingCertificateJksPath;
+	
+	@Value("${validation.signing.certificate.jks.pass}")
+    private String signingCertificateJksPass;
 	
 	private X509Certificate signingCertificate;
-	private CertPath signingCertificateChain;
+	private Certificate[] signingCertificateChain;
 	
 	@Autowired
 	private Connection amqpConnection;
@@ -123,10 +129,18 @@ public class ValidationController {
 	@PostConstruct
 	public void init() throws IOException, CertificateException {
 	    try {
-    	    signingCertificate = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new FileInputStream(signingCertificatePath));
-    	    signingCertificateChain = CertificateFactory.getInstance("X.509").generateCertPath(new FileInputStream(signingCertificatePath));
+	        KeyStore store = KeyStore.getInstance("JKS");
+	        store.load(new FileInputStream(signingCertificateJksPath), signingCertificateJksPass.toCharArray());
+	        Enumeration<String> aliases = store.aliases();
+	        signingCertificate = (X509Certificate) store.getCertificate(aliases.nextElement());
+	        signingCertificateChain = new Certificate[store.size() - 1];
+	        int i = 0;
+	        while (aliases.hasMoreElements()) {
+	            signingCertificateChain[i++] = store.getCertificate(aliases.nextElement());
+	        }
+	        
 	    } catch (Exception ex) {
-	        logger.warn("Failed to find validation certificate from path " + signingCertificatePath, ex);
+	        logger.warn("Failed to find validation certificate from path " + signingCertificateJksPath, ex);
 	    }
 	}
 	
@@ -272,8 +286,7 @@ public class ValidationController {
         params.setSignaturePackaging(SignaturePackaging.ENVELOPED);
         
         if (signingCertificateChain != null) {
-            params.setCertificateChain(signingCertificateChain
-                    .getCertificates().stream().map(c -> new CertificateToken((X509Certificate) c)).collect(Collectors.toList()));
+            params.setCertificateChain(Stream.of(signingCertificateChain).map(c -> new CertificateToken((X509Certificate) c)).collect(Collectors.toList()));
         }
         if (signingCertificate != null) {
             params.setSigningCertificate(new CertificateToken(signingCertificate));
@@ -307,7 +320,12 @@ public class ValidationController {
         try {
             Channel channel = amqpConnection.createChannel();
             RpcClient rpcClient = new RpcClient(channel, rabbitMqExchange, rabbitMqRoutingKey);
-            return rpcClient.primitiveCall(bytes);
+            logger.info("Calling RabbitMQ for remote signing");
+            String hash = "hash"; //Base64.getEncoder().encodeToString(bytes);
+            String request = "{\"Hash\":" + hash + "\",\"SessionId\": \"1\"}";
+            String response = rpcClient.stringCall(request);
+            logger.info("Response received: " + response);
+            return response.getBytes();
         } catch (Exception ex) {
             throw new RuntimeException(ex);
             

@@ -324,12 +324,13 @@ public class DSSBeanConfig {
 	    factory.setAutomaticRecoveryEnabled(true);
 	    KeyStore ks = KeyStore.getInstance("PKCS12");
 	    try {
-    	    ks.load(new FileInputStream(rabbitMqClientKeystorePath), rabbitMqClientKeystorePass.toCharArray());
-    	    factory.useSslProtocol(SSLContexts.custom()
-    	            .useProtocol("TLSv1.2")
-    	            .loadKeyMaterial(ks, rabbitMqClientKeystorePass.toCharArray())
-    	            .build());
-    	    
+	        if (!rabbitMqClientKeystorePath.isEmpty()) {
+        	    ks.load(new FileInputStream(rabbitMqClientKeystorePath), rabbitMqClientKeystorePass.toCharArray());
+        	    factory.useSslProtocol(SSLContexts.custom()
+        	            .useProtocol("TLSv1.2")
+        	            .loadKeyMaterial(ks, rabbitMqClientKeystorePass.toCharArray())
+        	            .build());
+	        }
 	    } catch (Exception ex) {
 	        logger.warn("Failed to load amqp client certificate", ex);
 	    }
