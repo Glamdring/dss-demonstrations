@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -43,6 +44,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.RpcClient;
@@ -126,6 +128,8 @@ public class ValidationController {
 	@Value("${rabbitmq.routingKey}")
     private String rabbitMqRoutingKey;
 	
+	private ObjectMapper objectMapper = new ObjectMapper();
+	
 	@PostConstruct
 	public void init() throws IOException, CertificateException {
 	    try {
@@ -159,7 +163,7 @@ public class ValidationController {
 	}
 	
 	@RequestMapping(method = RequestMethod.POST)
-	public String validate(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, Model model) {
+	public String validate(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, HttpSession session, Model model) {
 		if (result.hasErrors()) {
 			return VALIDATION_TILE;
 		}
@@ -223,12 +227,12 @@ public class ValidationController {
     }
 
     @RequestMapping(value = "/embed", method = RequestMethod.POST)
-    public String validateEmbed(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, Model model) {
+    public String validateEmbed(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, HttpSession session, Model model) {
         if (result.hasErrors()) {
             return VALIDATION_RESULT_EMBED_TILE;
         }
         
-        validate(validationForm, result, model);
+        validate(validationForm, result, session, model);
         
         return VALIDATION_RESULT_EMBED_TILE;
     }
@@ -245,7 +249,7 @@ public class ValidationController {
 			if (sign) {
 			    ByteArrayOutputStream out = new ByteArrayOutputStream();
 			    fopService.generateSimpleReport(simpleReport, out);
-			    signReport(out.toByteArray(), response.getOutputStream());
+			    signReport(out.toByteArray(), response.getOutputStream(), session.getId());
 			} else {
 			    fopService.generateSimpleReport(simpleReport, response.getOutputStream());
 			}
@@ -267,7 +271,7 @@ public class ValidationController {
 			if (sign) {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 fopService.generateDetailedReport(detailedReport, out);
-                signReport(out.toByteArray(), response.getOutputStream());
+                signReport(out.toByteArray(), response.getOutputStream(), session.getId());
             } else {
                 fopService.generateDetailedReport(detailedReport, response.getOutputStream());
             }
@@ -276,7 +280,7 @@ public class ValidationController {
 		}
 	}
 
-    private void signReport(byte[] byteArray, OutputStream outputStream) throws IOException {
+    private void signReport(byte[] byteArray, OutputStream outputStream, String sessionId) throws IOException {
         PAdESSignatureParameters params = new PAdESSignatureParameters();
         params.bLevel().setTrustAnchorBPPolicy(true);
         params.bLevel().setSigningDate(new Date());
@@ -307,25 +311,26 @@ public class ValidationController {
         DSSDocument document = new InMemoryDocument(byteArray);
         ToBeSigned toBeSigned = padesService.getDataToSign(document, params);
         SignatureValue signature = new SignatureValue();
-        signature.setAlgorithm(SignatureAlgorithm.RSA_SHA512);
+        signature.setAlgorithm(SignatureAlgorithm.RSA_SHA256);
         
-        byte[] signatureValue = signRemotely(toBeSigned.getBytes());
+        byte[] signatureValue = signRemotely(toBeSigned.getBytes(), sessionId + ":" + UUID.randomUUID());
         signature.setValue(signatureValue);
         
         DSSDocument signed = padesService.signDocument(document, params, signature);
         IOUtils.copy(signed.openStream(), outputStream);
     }
 
-    private byte[] signRemotely(byte[] bytes) {
+    private byte[] signRemotely(byte[] bytes, String transactionId) {
         try {
             Channel channel = amqpConnection.createChannel();
             RpcClient rpcClient = new RpcClient(channel, rabbitMqExchange, rabbitMqRoutingKey);
-            logger.info("Calling RabbitMQ for remote signing");
-            String hash = "hash"; //Base64.getEncoder().encodeToString(bytes);
-            String request = "{\"Hash\":\"" + hash + "\",\"SessionId\":\"1\"}";
+            String hash = Base64.getEncoder().encodeToString(bytes);
+            String request = "{\"documentHash\":\"" + hash + "\",\"transactionId\":\"" + transactionId + "\"}";
+            logger.info("Calling RabbitMQ for remote signing with request={}", request);
             String response = rpcClient.stringCall(request);
             logger.info("Response received: " + response);
-            return response.getBytes();
+            String signedHash = objectMapper.readTree(response).get("documentHash").asText();
+            return Base64.getDecoder().decode(signedHash);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
             
