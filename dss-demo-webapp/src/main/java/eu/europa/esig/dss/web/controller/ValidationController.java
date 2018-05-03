@@ -26,6 +26,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +39,11 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.SessionAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -160,6 +163,56 @@ public class ValidationController {
 		validationForm.setDefaultPolicy(true);
 		model.addAttribute("validationForm", validationForm);
 		return VALIDATION_TILE;
+	}
+	
+	/**
+	 * A Restful endpoint that does the validation and provides a report as a response
+	 */
+	@RequestMapping(value = "/validate", method = RequestMethod.POST)
+	@ResponseBody
+    public ValidationDto validate(@RequestBody ValidationDto request) throws Exception {
+	    byte[] document = Base64.getDecoder().decode(request.getBase64bytes());
+	    
+	    SignedDocumentValidator documentValidator = SignedDocumentValidator.fromDocument(new InMemoryDocument(document));
+        documentValidator.setCertificateVerifier(certificateVerifier);
+        documentValidator.setValidationLevel(request.getValidationLevel());
+        
+        Reports reports = null;
+        
+        InputStream dpis = null;
+        try {
+            dpis = defaultPolicy.getInputStream();
+            reports = documentValidator.validateDocument(dpis);
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            Utils.closeQuietly(dpis);
+        }
+        
+        String reportXml;
+        if (request.isSimpleReport()) {
+            reportXml = reports.getXmlSimpleReport();
+        } else {
+            reportXml = reports.getXmlDetailedReport();
+        }
+        
+        try {
+            ByteArrayOutputStream reportOut = new ByteArrayOutputStream();
+            fopService.generateSimpleReport(reportXml, reportOut);
+            ByteArrayOutputStream signedReportOut = new ByteArrayOutputStream();
+            signReport(reportOut.toByteArray(), signedReportOut, request.getSessionId() != null ? request.getSessionId() : "");
+            
+            ValidationDto response = new ValidationDto();
+            response.setBase64bytes(Base64.getEncoder().encodeToString(signedReportOut.toByteArray()));
+            response.setSessionId(request.getSessionId());
+            response.setSimpleReport(request.isSimpleReport());
+            response.setValidationLevel(request.getValidationLevel());
+            return response;
+        } catch (Exception ex) {
+            logger.error("An error occured while generating pdf for report : " + ex.getMessage(), ex);
+            throw ex;
+        }
+        
 	}
 	
 	@RequestMapping(method = RequestMethod.POST)
@@ -322,9 +375,10 @@ public class ValidationController {
 
     private byte[] signRemotely(byte[] bytes, String transactionId) {
         try {
+            byte[] hashBytes = DigestUtils.sha256(bytes);
             Channel channel = amqpConnection.createChannel();
             RpcClient rpcClient = new RpcClient(channel, rabbitMqExchange, rabbitMqRoutingKey);
-            String hash = Base64.getEncoder().encodeToString(bytes);
+            String hash = Base64.getEncoder().encodeToString(hashBytes);
             String request = "{\"documentHash\":\"" + hash + "\",\"transactionId\":\"" + transactionId + "\"}";
             logger.info("Calling RabbitMQ for remote signing with request={}", request);
             String response = rpcClient.stringCall(request);
@@ -350,12 +404,12 @@ public class ValidationController {
         imageParams.getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
         imageParams.getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
         imageParams.getTextParameters().setRightPadding(4);
-        imageParams.getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
+        imageParams.getTextParameters().setText("Evrotrust Qualified\nValidation Service");
         imageParams.getTextParameters().setFont(new Font("helvetica", Font.PLAIN, 18));
         
         imageParams.setTextRightParameters(new SignatureImageTextParameters());
-        imageParams.getTextRightParameters().setText("Digitally Signed with a\nQualified E-Seal.\nQualified Time-stamped.\n" + 
-                "Date: %DateTimeWithTimeZone%\nCompliant with eIDAS.");
+        imageParams.getTextRightParameters().setText("Digitally Signed by Evrotrust\nQualified Validation Authority.\nQualified Time stamped.\n" + 
+                "Compliant with eIDAS.");
         imageParams.getTextRightParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
         imageParams.getTextRightParameters().setSignerNamePosition(SignerPosition.LEFT);
         imageParams.getTextRightParameters().setFont(new Font("helvetica", Font.PLAIN, 12));
@@ -368,5 +422,43 @@ public class ValidationController {
 	public ValidationLevel[] getValidationLevels() {
 		return new ValidationLevel[] { ValidationLevel.BASIC_SIGNATURES, ValidationLevel.LONG_TERM_DATA, ValidationLevel.ARCHIVAL_DATA };
 	}
+	
+	public static class ValidationDto {
+	    private String base64bytes;
+	    private ValidationLevel validationLevel = ValidationLevel.ARCHIVAL_DATA;
+	    private boolean simpleReport;
+	    private String sessionId;
 
+        public String getBase64bytes() {
+            return base64bytes;
+        }
+
+        public void setBase64bytes(String base64bytes) {
+            this.base64bytes = base64bytes;
+        }
+
+        public boolean isSimpleReport() {
+            return simpleReport;
+        }
+
+        public void setSimpleReport(boolean simpleReport) {
+            this.simpleReport = simpleReport;
+        }
+
+        public ValidationLevel getValidationLevel() {
+            return validationLevel;
+        }
+
+        public void setValidationLevel(ValidationLevel validationLevel) {
+            this.validationLevel = validationLevel;
+        }
+
+        public String getSessionId() {
+            return sessionId;
+        }
+
+        public void setSessionId(String sessionId) {
+            this.sessionId = sessionId;
+        }
+	}
 }
