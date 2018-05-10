@@ -171,7 +171,7 @@ public class ValidationController {
 	@RequestMapping(value = "/validate", method = RequestMethod.POST)
 	@ResponseBody
     public ValidationDto validate(@RequestBody ValidationDto request) throws Exception {
-	    byte[] document = Base64.getDecoder().decode(request.getBase64bytes());
+	    byte[] document = Base64.getMimeDecoder().decode(request.getBase64bytes());
 	    
 	    SignedDocumentValidator documentValidator = SignedDocumentValidator.fromDocument(new InMemoryDocument(document));
         documentValidator.setCertificateVerifier(certificateVerifier);
@@ -341,6 +341,7 @@ public class ValidationController {
         params.setSignWithExpiredCertificate(false);
         params.setSignatureLevel(SignatureLevel.PAdES_BASELINE_LTA);
         params.setSignaturePackaging(SignaturePackaging.ENVELOPED);
+        params.setValidationReportSigning(true);
         
         if (signingCertificateChain != null) {
             params.setCertificateChain(Stream.of(signingCertificateChain).map(c -> new CertificateToken((X509Certificate) c)).collect(Collectors.toList()));
@@ -378,13 +379,14 @@ public class ValidationController {
             byte[] hashBytes = DigestUtils.sha256(bytes);
             Channel channel = amqpConnection.createChannel();
             RpcClient rpcClient = new RpcClient(channel, rabbitMqExchange, rabbitMqRoutingKey);
-            String hash = Base64.getEncoder().encodeToString(hashBytes);
+            String hash = Base64.getMimeEncoder().encodeToString(hashBytes);
             String request = "{\"documentHash\":\"" + hash + "\",\"transactionId\":\"" + transactionId + "\"}";
             logger.info("Calling RabbitMQ for remote signing with request={}", request);
             String response = rpcClient.stringCall(request);
             logger.info("Response received: " + response);
             String signedHash = objectMapper.readTree(response).get("documentHash").asText();
-            return Base64.getDecoder().decode(signedHash);
+            logger.info("Hash received: " + signedHash);
+            return Base64.getMimeDecoder().decode(signedHash);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
             
