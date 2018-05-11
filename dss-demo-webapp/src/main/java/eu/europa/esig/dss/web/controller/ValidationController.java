@@ -12,7 +12,6 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
@@ -58,7 +57,6 @@ import eu.europa.esig.dss.InMemoryDocument;
 import eu.europa.esig.dss.MimeType;
 import eu.europa.esig.dss.RemoteDocument;
 import eu.europa.esig.dss.SignatureAlgorithm;
-import eu.europa.esig.dss.SignatureImagePageRange;
 import eu.europa.esig.dss.SignatureImageParameters;
 import eu.europa.esig.dss.SignatureImageParameters.SignerTextImageVerticalAlignment;
 import eu.europa.esig.dss.SignatureImageParameters.VisualSignaturePagePlacement;
@@ -349,13 +347,6 @@ public class ValidationController {
         if (signingCertificate != null) {
             params.setSigningCertificate(new CertificateToken(signingCertificate));
         }
-        SignatureImageParameters stampParams = createImageParams();
-        stampParams.setPagePlacement(VisualSignaturePagePlacement.RANGE);
-        stampParams.setPageRange(new SignatureImagePageRange());
-        stampParams.getPageRange().setAll(true);
-        stampParams.getPageRange().setExcludeLast(true);
-        stampParams.getPageRange().setExcludeLastCount(1);
-        params.setStampImageParameters(Collections.singletonList(stampParams));
         
         SignatureImageParameters signatureParams = createImageParams();
         signatureParams.setPagePlacement(VisualSignaturePagePlacement.SINGLE_PAGE);
