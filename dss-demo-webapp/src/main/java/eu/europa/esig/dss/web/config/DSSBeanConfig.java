@@ -320,6 +320,10 @@ public class DSSBeanConfig {
 	
 	@Bean(destroyMethod = "close")
 	public Connection amqpConnection() throws Exception {
+	    if (Utils.isStringBlank(rabbitMqUri)) {
+	        return null;
+	    }
+	    
 	    ConnectionFactory factory = new ConnectionFactory();
 	    factory.setAutomaticRecoveryEnabled(true);
 	    KeyStore ks = KeyStore.getInstance("PKCS12");

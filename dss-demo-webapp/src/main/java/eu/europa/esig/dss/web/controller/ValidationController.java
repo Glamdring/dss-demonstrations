@@ -120,7 +120,7 @@ public class ValidationController {
 	private X509Certificate signingCertificate;
 	private Certificate[] signingCertificateChain;
 	
-	@Autowired
+	@Autowired(required = false)
 	private Connection amqpConnection;
 	
 	@Value("${rabbitmq.exchange}")
@@ -133,6 +133,10 @@ public class ValidationController {
 	
 	@PostConstruct
 	public void init() throws IOException, CertificateException {
+	    if (signingCertificateJksPath == null) {
+	        return;
+	    }
+	    
 	    try {
 	        KeyStore store = KeyStore.getInstance("JKS");
 	        store.load(new FileInputStream(signingCertificateJksPath), signingCertificateJksPass.toCharArray());
@@ -354,15 +358,19 @@ public class ValidationController {
         params.setSignatureImageParameters(signatureParams);
         
         DSSDocument document = new InMemoryDocument(byteArray);
-        ToBeSigned toBeSigned = padesService.getDataToSign(document, params);
-        SignatureValue signature = new SignatureValue();
-        signature.setAlgorithm(SignatureAlgorithm.RSA_SHA256);
+        if (amqpConnection != null) {
+            ToBeSigned toBeSigned = padesService.getDataToSign(document, params);
+            SignatureValue signature = new SignatureValue();
+            signature.setAlgorithm(SignatureAlgorithm.RSA_SHA256);
+            
+            byte[] signatureValue = signRemotely(toBeSigned.getBytes(), sessionId + ":" + UUID.randomUUID());
+            signature.setValue(signatureValue);
+            DSSDocument signed = padesService.signDocument(document, params, signature);
+            IOUtils.copy(signed.openStream(), outputStream);
+        } else {
+            IOUtils.copy(document.openStream(), outputStream);
+        }
         
-        byte[] signatureValue = signRemotely(toBeSigned.getBytes(), sessionId + ":" + UUID.randomUUID());
-        signature.setValue(signatureValue);
-        
-        DSSDocument signed = padesService.signDocument(document, params, signature);
-        IOUtils.copy(signed.openStream(), outputStream);
     }
 
     private byte[] signRemotely(byte[] bytes, String transactionId) {
