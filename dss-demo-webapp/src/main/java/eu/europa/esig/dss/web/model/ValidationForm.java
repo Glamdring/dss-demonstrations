@@ -1,5 +1,7 @@
 package eu.europa.esig.dss.web.model;
 
+import java.util.List;
+
 import javax.validation.constraints.AssertTrue;
 
 import org.springframework.web.multipart.MultipartFile;
@@ -10,13 +12,19 @@ public class ValidationForm {
 
 	private MultipartFile signedFile;
 
-	private MultipartFile originalFile;
+	private List<MultipartFile> originalFiles;
 
 	private ValidationLevel validationLevel;
 
 	private boolean defaultPolicy;
 
 	private MultipartFile policyFile;
+	
+	private boolean includeCertificateTokens;
+	
+	private boolean includeRevocationTokens;
+	
+	private boolean includeTimestampTokens;
 
 	public MultipartFile getSignedFile() {
 		return signedFile;
@@ -26,12 +34,12 @@ public class ValidationForm {
 		this.signedFile = signedFile;
 	}
 
-	public MultipartFile getOriginalFile() {
-		return originalFile;
+	public List<MultipartFile> getOriginalFiles() {
+		return originalFiles;
 	}
 
-	public void setOriginalFile(MultipartFile originalFile) {
-		this.originalFile = originalFile;
+	public void setOriginalFiles(List<MultipartFile> originalFiles) {
+		this.originalFiles = originalFiles;
 	}
 
 	public ValidationLevel getValidationLevel() {
@@ -56,6 +64,30 @@ public class ValidationForm {
 
 	public void setPolicyFile(MultipartFile policyFile) {
 		this.policyFile = policyFile;
+	}
+	
+	public boolean isIncludeCertificateTokens() {
+		return includeCertificateTokens;
+	}
+
+	public void setIncludeCertificateTokens(boolean includeCertificateTokens) {
+		this.includeCertificateTokens = includeCertificateTokens;
+	}
+
+	public boolean isIncludeRevocationTokens() {
+		return includeRevocationTokens;
+	}
+
+	public void setIncludeRevocationTokens(boolean includeRevocationTokens) {
+		this.includeRevocationTokens = includeRevocationTokens;
+	}
+
+	public boolean isIncludeTimestampTokens() {
+		return includeTimestampTokens;
+	}
+
+	public void setIncludeTimestampTokens(boolean includeTimestampTokens) {
+		this.includeTimestampTokens = includeTimestampTokens;
 	}
 
 	@AssertTrue(message = "{error.signed.file.mandatory}")

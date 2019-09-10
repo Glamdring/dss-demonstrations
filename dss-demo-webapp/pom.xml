@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 		<artifactId>dss-demos</artifactId>
-		<version>5.2</version>
+		<version>5.5.RC1</version>
 	</parent>
 
 	<artifactId>dss-demo-webapp</artifactId>
@@ -78,7 +78,27 @@
 			                <overwrite>true</overwrite>
 			                <resources>
 			                    <resource>
-			                        <directory>../../dss/dss-cookbook/target/generated-docs</directory>
+			                        <directory>${dss.framework.root.directory}/dss-cookbook/target/generated-docs</directory>
+			                        <includes>
+			                            <include>**/*</include>
+			                            <include>*</include>
+			                        </includes>
+			                    </resource>
+			                </resources>
+			            </configuration>
+			        </execution>
+			        <execution>
+			            <id>copy-javadoc</id>
+						<phase>process-resources</phase>
+			            <goals>
+			                <goal>copy-resources</goal>
+			            </goals>
+			            <configuration>
+			                <outputDirectory>${project.build.directory}/${project.artifactId}-${project.version}/apidocs</outputDirectory>
+			                <overwrite>true</overwrite>
+			                <resources>
+			                    <resource>
+			                        <directory>${dss.framework.root.directory}/target/site/apidocs</directory>
 			                        <includes>
 			                            <include>**/*</include>
 			                            <include>*</include>
@@ -145,22 +165,32 @@
 	    
 		<dependency>
 		    <groupId>org.thymeleaf</groupId>
-		    <artifactId>thymeleaf-spring4</artifactId>
+		    <artifactId>thymeleaf-spring5</artifactId>
+		</dependency>
+	
+		<dependency>
+			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
+			<artifactId>dss-mock-tsa</artifactId>
 		</dependency>
 
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 			<artifactId>dss-service</artifactId>
+			<exclusions>
+				<exclusion>
+					<artifactId>commons-logging</artifactId>
+					<groupId>commons-logging</groupId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 			<artifactId>dss-tsl-validation</artifactId>
 		</dependency>
-		
-		<dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.1</version>
+        <dependency>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+            <version>5.7.2</version>
         </dependency>
 
 		<!-- Choose your implementation -->
@@ -183,11 +213,6 @@
 			<artifactId>dss-crl-parser-stream</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.hsqldb</groupId>
-			<artifactId>hsqldb</artifactId>
-		</dependency>
-		
 		<!-- SOAP -->
 		<dependency>
 			<groupId>org.apache.cxf</groupId>
@@ -199,7 +224,7 @@
 		</dependency>
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
-			<artifactId>dss-soap</artifactId>
+			<artifactId>dss-signature-soap</artifactId>
 			<scope>compile</scope>
 			<exclusions>
 				<exclusion>
@@ -215,9 +240,30 @@
 		</dependency>
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
+			<artifactId>dss-certificate-validation-soap</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 			<artifactId>dss-server-signing-soap</artifactId>
 			<scope>compile</scope>
 		</dependency>
+		
+		<!-- Choose your PAdES implementation -->
+		<dependency>
+			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
+			<artifactId>dss-pades-pdfbox</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>commons-logging</groupId>
+					<artifactId>commons-logging</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+<!-- 		<dependency> -->
+<!-- 			<groupId>eu.europa.ec.joinup.sd-dss</groupId> -->
+<!-- 			<artifactId>dss-pades-openpdf</artifactId> -->
+<!-- 		</dependency> -->
 		
 		<!-- REST -->
 		
@@ -226,12 +272,16 @@
 		  <artifactId>cxf-rt-rs-service-description</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.cxf</groupId>
+			<artifactId>cxf-rt-features-logging</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>com.fasterxml.jackson.jaxrs</groupId>
 			<artifactId>jackson-jaxrs-json-provider</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
-			<artifactId>dss-rest</artifactId>
+			<artifactId>dss-signature-rest</artifactId>
 			<scope>compile</scope>
 			<exclusions>
 				<exclusion>
@@ -243,6 +293,11 @@
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 			<artifactId>dss-validation-rest</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
+			<artifactId>dss-certificate-validation-rest</artifactId>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -277,43 +332,43 @@
 		</dependency>
 
 		<dependency>
-			<groupId>commons-dbcp</groupId>
-			<artifactId>commons-dbcp</artifactId>
-			<version>1.4</version>
+			<groupId>org.hsqldb</groupId>
+			<artifactId>hsqldb</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.zaxxer</groupId>
+			<artifactId>HikariCP</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>commons-fileupload</groupId>
 			<artifactId>commons-fileupload</artifactId>
-			<version>1.3.2</version>
-		</dependency>
-		
+		</dependency>		
 		<dependency>
 		    <groupId>org.freemarker</groupId>
 		    <artifactId>freemarker</artifactId>
-		    <version>2.3.23</version>
 		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.xmlgraphics</groupId>
 			<artifactId>fop</artifactId>
-			<version>2.2</version>
+			<version>2.3</version>
 			<exclusions>
 				<exclusion>
 					<artifactId>commons-logging</artifactId>
 					<groupId>commons-logging</groupId>
 				</exclusion>
+				<exclusion>
+					<groupId>xalan</groupId>
+					<artifactId>xalan</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
-			<groupId>com.rabbitmq</groupId>
-			<artifactId>amqp-client</artifactId>
-			<version>5.7.2</version>
-		</dependency>
-
+		
 		<dependency>
 			<groupId>org.webjars.bower</groupId>
 			<artifactId>google-code-prettify</artifactId>
-			<version>1.0.4</version>
+			<version>1.0.5</version>
 		</dependency>
 		<dependency>
 			<groupId>org.webjars</groupId>
@@ -325,7 +380,7 @@
 			<artifactId>jquery-ui</artifactId>
 			<version>1.11.1</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>javax.servlet-api</artifactId>
@@ -335,7 +390,7 @@
 		<dependency>
 			<groupId>org.hibernate</groupId>
 			<artifactId>hibernate-validator</artifactId>
-			<version>4.3.2.Final</version>
+			<version>5.4.2.Final</version>
 		</dependency>
 		
 		<dependency>
@@ -352,18 +407,6 @@
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-test</artifactId>
 			<scope>test</scope>
-		</dependency>
-		<dependency>
-	       <groupId>org.seleniumhq.selenium</groupId>
-	       <artifactId>selenium-java</artifactId>
-	       <version>2.41.0</version>
-	       <scope>test</scope>
-	       <exclusions>
-	       	<exclusion>
-	       		<artifactId>commons-logging</artifactId>
-	       		<groupId>commons-logging</groupId>
-	       	</exclusion>
-	       </exclusions>
 		</dependency>
 	</dependencies>
 

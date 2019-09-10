@@ -7,10 +7,11 @@ import javax.validation.constraints.NotNull;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import eu.europa.esig.dss.DigestAlgorithm;
-import eu.europa.esig.dss.EncryptionAlgorithm;
-import eu.europa.esig.dss.SignatureForm;
-import eu.europa.esig.dss.SignatureLevel;
+import eu.europa.esig.dss.enumerations.DigestAlgorithm;
+import eu.europa.esig.dss.enumerations.EncryptionAlgorithm;
+import eu.europa.esig.dss.enumerations.SignatureForm;
+import eu.europa.esig.dss.enumerations.SignatureLevel;
+
 
 public abstract class AbstractSignatureForm {
 
@@ -20,6 +21,8 @@ public abstract class AbstractSignatureForm {
 	private Date signingDate;
 
 	private boolean signWithExpiredCertificate;
+
+	private boolean addContentTimestamp;
 
 	@NotNull(message = "{error.signature.form.mandatory}")
 	private SignatureForm signatureForm;
@@ -48,6 +51,8 @@ public abstract class AbstractSignatureForm {
 	
 	private String stampImageXml;
 	
+	private TimestampDTO contentTimestamp;
+
 	public boolean isNexuDetected() {
 		return nexuDetected;
 	}
@@ -70,6 +75,14 @@ public abstract class AbstractSignatureForm {
 
 	public void setSignWithExpiredCertificate(boolean signWithExpiredCertificate) {
 		this.signWithExpiredCertificate = signWithExpiredCertificate;
+	}
+
+	public boolean isAddContentTimestamp() {
+		return addContentTimestamp;
+	}
+
+	public void setAddContentTimestamp(boolean addContentTimestamp) {
+		this.addContentTimestamp = addContentTimestamp;
 	}
 
 	public SignatureForm getSignatureForm() {
@@ -167,4 +180,12 @@ public abstract class AbstractSignatureForm {
     public void setStampImageXml(String stampImageXml) {
         this.stampImageXml = stampImageXml;
     }
+	public TimestampDTO getContentTimestamp() {
+		return contentTimestamp;
+	}
+
+	public void setContentTimestamp(TimestampDTO contentTimestamp) {
+		this.contentTimestamp = contentTimestamp;
+	}
+
 }

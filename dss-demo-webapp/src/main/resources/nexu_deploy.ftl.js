@@ -14,9 +14,16 @@
 
 var nexuVersion = "${nexuVersion}";
 
+// IE
+if (!String.prototype.startsWith) {
+  String.prototype.startsWith = function(searchString, position){
+    return this.substr(position || 0, searchString.length) === searchString;
+  };
+}
+
 $.get("${nexuUrl}/nexu-info", function(data) {
 	// something responded
-	if(data.version == nexuVersion) {
+	if(data.version.startsWith(nexuVersion)) {
 		// valid version
 		// load nexu script 
 		console.log("Loading script...");

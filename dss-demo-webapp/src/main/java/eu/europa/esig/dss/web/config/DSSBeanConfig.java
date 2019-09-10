@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyStore;
+import java.security.KeyStore.PasswordProtection;
+import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
@@ -15,7 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.ImportResource;
 import org.springframework.core.io.ClassPathResource;
 
 import com.logsentinel.LogSentinelClient;
@@ -23,39 +26,42 @@ import com.logsentinel.LogSentinelClientBuilder;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
-import eu.europa.esig.dss.asic.signature.ASiCWithCAdESService;
-import eu.europa.esig.dss.asic.signature.ASiCWithXAdESService;
+import eu.europa.esig.dss.asic.cades.signature.ASiCWithCAdESService;
+import eu.europa.esig.dss.asic.xades.signature.ASiCWithXAdESService;
 import eu.europa.esig.dss.cades.signature.CAdESService;
-import eu.europa.esig.dss.client.crl.JdbcCacheCRLSource;
-import eu.europa.esig.dss.client.crl.OnlineCRLSource;
-import eu.europa.esig.dss.client.http.DataLoader;
-import eu.europa.esig.dss.client.http.commons.CommonsDataLoader;
-import eu.europa.esig.dss.client.http.commons.FileCacheDataLoader;
-import eu.europa.esig.dss.client.http.commons.OCSPDataLoader;
-import eu.europa.esig.dss.client.http.commons.TimestampDataLoader;
-import eu.europa.esig.dss.client.http.proxy.ProxyConfig;
-import eu.europa.esig.dss.client.ocsp.OnlineOCSPSource;
-import eu.europa.esig.dss.client.tsp.OnlineTSPSource;
 import eu.europa.esig.dss.pades.signature.PAdESService;
-import eu.europa.esig.dss.signature.RemoteDocumentSignatureServiceImpl;
-import eu.europa.esig.dss.signature.RemoteMultipleDocumentsSignatureServiceImpl;
+import eu.europa.esig.dss.service.crl.JdbcCacheCRLSource;
+import eu.europa.esig.dss.service.crl.OnlineCRLSource;
+import eu.europa.esig.dss.service.http.commons.CommonsDataLoader;
+import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader;
+import eu.europa.esig.dss.service.http.commons.OCSPDataLoader;
+import eu.europa.esig.dss.service.http.proxy.ProxyConfig;
+import eu.europa.esig.dss.service.ocsp.JdbcCacheOCSPSource;
+import eu.europa.esig.dss.service.ocsp.OnlineOCSPSource;
+import eu.europa.esig.dss.spi.client.http.DataLoader;
+import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource;
+import eu.europa.esig.dss.spi.x509.KeyStoreCertificateSource;
+import eu.europa.esig.dss.spi.x509.tsp.TSPSource;
 import eu.europa.esig.dss.token.KeyStoreSignatureTokenConnection;
-import eu.europa.esig.dss.token.RemoteSignatureTokenConnection;
-import eu.europa.esig.dss.token.RemoteSignatureTokenConnectionImpl;
-import eu.europa.esig.dss.tsl.TrustedListsCertificateSource;
 import eu.europa.esig.dss.tsl.service.TSLRepository;
 import eu.europa.esig.dss.tsl.service.TSLValidationJob;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.validation.CommonCertificateVerifier;
-import eu.europa.esig.dss.validation.RemoteDocumentValidationService;
-import eu.europa.esig.dss.x509.KeyStoreCertificateSource;
-import eu.europa.esig.dss.x509.tsp.TSPSource;
+import eu.europa.esig.dss.ws.cert.validation.common.RemoteCertificateValidationService;
+import eu.europa.esig.dss.ws.server.signing.common.RemoteSignatureTokenConnection;
+import eu.europa.esig.dss.ws.server.signing.common.RemoteSignatureTokenConnectionImpl;
+import eu.europa.esig.dss.ws.signature.common.RemoteDocumentSignatureServiceImpl;
+import eu.europa.esig.dss.ws.signature.common.RemoteMultipleDocumentsSignatureServiceImpl;
+import eu.europa.esig.dss.ws.validation.common.RemoteDocumentValidationService;
 import eu.europa.esig.dss.xades.signature.XAdESService;
 
 @Configuration
 @PropertySource(value= {"classpath:dss.properties", "file:${dss.config.path}/dss.properties"}, ignoreResourceNotFound=true)
-@ComponentScan(basePackages = { "eu.europa.esig.dss" })
+@ComponentScan(basePackages = { "eu.europa.esig.dss.web.job", "eu.europa.esig.dss.web.service" })
+@Import({ PropertiesConfig.class, CXFConfig.class, PersistenceConfig.class, ProxyConfiguration.class, WebSecurityConfig.class,
+		SchedulingConfig.class })
+@ImportResource({ "${tsp-source}" })
 public class DSSBeanConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(DSSBeanConfig.class);
@@ -69,11 +75,8 @@ public class DSSBeanConfig {
 	@Value("${lotl.country.code}")
 	private String lotlCountryCode;
 
-	@Value("${lotl.root.scheme.info.uri}")
-	private String lotlRootSchemeInfoUri;
-
 	@Value("${current.oj.url}")
-	private String ojUrl;
+	private String currentOjUrl;
 
 	@Value("${oj.content.keystore.type}")
 	private String ksType;
@@ -168,18 +171,28 @@ public class DSSBeanConfig {
 	}
 
 	@Bean
-	public JdbcCacheCRLSource cachedCRLSource() throws Exception {
+	public JdbcCacheCRLSource cachedCRLSource() {
 		JdbcCacheCRLSource jdbcCacheCRLSource = new JdbcCacheCRLSource();
 		jdbcCacheCRLSource.setDataSource(dataSource);
-		jdbcCacheCRLSource.setCachedSource(onlineCRLSource());
+		jdbcCacheCRLSource.setProxySource(onlineCRLSource());
+		jdbcCacheCRLSource.setDefaultNextUpdateDelay((long) (60 * 3)); // 3 minutes
 		return jdbcCacheCRLSource;
 	}
 
 	@Bean
-	public OnlineOCSPSource ocspSource() {
+	public OnlineOCSPSource onlineOcspSource() {
 		OnlineOCSPSource onlineOCSPSource = new OnlineOCSPSource();
 		onlineOCSPSource.setDataLoader(ocspDataLoader());
 		return onlineOCSPSource;
+	}
+
+	@Bean
+	public JdbcCacheOCSPSource cachedOCSPSource() {
+		JdbcCacheOCSPSource jdbcCacheOCSPSource = new JdbcCacheOCSPSource();
+		jdbcCacheOCSPSource.setDataSource(dataSource);
+		jdbcCacheOCSPSource.setProxySource(onlineOcspSource());
+		jdbcCacheOCSPSource.setDefaultNextUpdateDelay((long) (1000 * 60 * 3)); // 3 minutes
+		return jdbcCacheOCSPSource;
 	}
 
 	@Bean
@@ -188,19 +201,11 @@ public class DSSBeanConfig {
 	}
 
 	@Bean
-	public TSPSource tspSource() {
-		OnlineTSPSource onlineTSPSource = new OnlineTSPSource();
-		onlineTSPSource.setDataLoader(timestampDataLoader());
-		onlineTSPSource.setTspServer(tsaUrl);
-		return onlineTSPSource;
-	}
-
-	@Bean
 	public CertificateVerifier certificateVerifier() throws Exception {
 		CommonCertificateVerifier certificateVerifier = new CommonCertificateVerifier();
 		certificateVerifier.setTrustedCertSource(trustedListSource());
 		certificateVerifier.setCrlSource(cachedCRLSource());
-		certificateVerifier.setOcspSource(ocspSource());
+		certificateVerifier.setOcspSource(cachedOCSPSource());
 		certificateVerifier.setDataLoader(dataLoader());
 		return certificateVerifier;
 	}
@@ -213,21 +218,21 @@ public class DSSBeanConfig {
 	@Bean
 	public CAdESService cadesService() throws Exception {
 		CAdESService service = new CAdESService(certificateVerifier());
-		service.setTspSource(tspSource());
+		service.setTspSource(tspSource);
 		return service;
 	}
 
 	@Bean
 	public XAdESService xadesService() throws Exception {
 		XAdESService service = new XAdESService(certificateVerifier());
-		service.setTspSource(tspSource());
+		service.setTspSource(tspSource);
 		return service;
 	}
 
 	@Bean
 	public PAdESService padesService() throws Exception {
 		PAdESService service = new PAdESService(certificateVerifier());
-		service.setTspSource(tspSource());
+		service.setTspSource(tspSource);
 		service.setSignatureImageDir(new File(signatureImageDir));
 		return service;
 	}
@@ -235,14 +240,14 @@ public class DSSBeanConfig {
 	@Bean
 	public ASiCWithCAdESService asicWithCadesService() throws Exception {
 		ASiCWithCAdESService service = new ASiCWithCAdESService(certificateVerifier());
-		service.setTspSource(tspSource());
+		service.setTspSource(tspSource);
 		return service;
 	}
 
 	@Bean
 	public ASiCWithXAdESService asicWithXadesService() throws Exception {
 		ASiCWithXAdESService service = new ASiCWithXAdESService(certificateVerifier());
-		service.setTspSource(tspSource());
+		service.setTspSource(tspSource);
 		return service;
 	}
 
@@ -276,11 +281,18 @@ public class DSSBeanConfig {
 		service.setVerifier(certificateVerifier());
 		return service;
 	}
+	
+	@Bean
+	public RemoteCertificateValidationService RemoteCertificateValidationService() throws Exception {
+		RemoteCertificateValidationService service = new RemoteCertificateValidationService();
+		service.setVerifier(certificateVerifier());
+		return service;
+	}
 
 	@Bean
 	public KeyStoreSignatureTokenConnection remoteToken() throws IOException {
 		return new KeyStoreSignatureTokenConnection(new ClassPathResource(serverSigningKeystoreFilename).getFile(), serverSigningKeystoreType,
-				serverSigningKeystorePassword);
+				new PasswordProtection(serverSigningKeystorePassword.toCharArray()));
 	}
 
 	@Bean
@@ -310,7 +322,7 @@ public class DSSBeanConfig {
 		validationJob.setLotlUrl(lotlUrl);
 		validationJob.setLotlRootSchemeInfoUri(lotlRootSchemeInfoUri);
 		validationJob.setLotlCode(lotlCountryCode);
-		validationJob.setOjUrl(ojUrl);
+		validationJob.setOjUrl(currentOjUrl);
 		validationJob.setOjContentKeyStore(ojContentKeyStore);
 		validationJob.setCheckLOTLSignature(true);
 		validationJob.setCheckTSLSignatures(true);

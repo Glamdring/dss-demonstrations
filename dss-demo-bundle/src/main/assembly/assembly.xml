@@ -7,8 +7,8 @@
 	<id>ootb-webapp</id>
 
 	<formats>
-		<format>zip</format>
 		<format>tar.gz</format>
+		<format>zip</format>
 	</formats>
 
 	<fileSets>
@@ -21,17 +21,14 @@
 			<directory>src/main/resources/tomcat/</directory>
 			<outputDirectory>${tomcat.root.folder}</outputDirectory>
 		</fileSet>
+		<fileSet>
+			<directory>${project.build.directory}/java/${jre.root.folder}</directory>
+			<fileMode>0644</fileMode>
+			<outputDirectory>java</outputDirectory>
+		</fileSet>
 	</fileSets>
 	
 	<dependencySets>
-		<dependencySet>
-			<unpack>true</unpack>
-			<includes>
-				<include>com.oracle:jre-win32:zip</include>
-			</includes>
-			<outputDirectory>java</outputDirectory>
-			<fileMode>0644</fileMode>
-		</dependencySet>
 		<dependencySet>
 			<includes>
 				<include>org.apache.tomcat:tomcat:zip</include>
@@ -40,7 +37,6 @@
 			<unpack>true</unpack>
 			<unpackOptions>
 				<excludes>
-					<exclude>${tomcat.root.folder}/conf/tomcat-users.xml</exclude>
 					<exclude>${tomcat.root.folder}/webapps/**/*</exclude>
 				</excludes>
 			</unpackOptions>
@@ -52,13 +48,6 @@
 			<outputDirectory>${tomcat.root.folder}/webapps</outputDirectory>
 			<!-- Works only if there is one include -->
 			<outputFileNameMapping>ROOT.war</outputFileNameMapping>
-		</dependencySet>
-		<dependencySet>
-			<includes>
-				<include>lu.nowina.apps:nexu-app:jar</include>
-			</includes>
-			<outputDirectory></outputDirectory>
-			<outputFileNameMapping>nexu.jar</outputFileNameMapping>
 		</dependencySet>
 	</dependencySets>
 </assembly>

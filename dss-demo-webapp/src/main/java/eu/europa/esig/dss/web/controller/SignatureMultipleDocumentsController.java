@@ -26,17 +26,18 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.SessionAttributes;
 
-import eu.europa.esig.dss.ASiCContainerType;
-import eu.europa.esig.dss.DSSDocument;
-import eu.europa.esig.dss.DSSUtils;
-import eu.europa.esig.dss.DigestAlgorithm;
-import eu.europa.esig.dss.EncryptionAlgorithm;
-import eu.europa.esig.dss.InMemoryDocument;
-import eu.europa.esig.dss.MimeType;
-import eu.europa.esig.dss.SignatureForm;
-import eu.europa.esig.dss.SignatureLevel;
-import eu.europa.esig.dss.ToBeSigned;
+import eu.europa.esig.dss.enumerations.ASiCContainerType;
+import eu.europa.esig.dss.enumerations.DigestAlgorithm;
+import eu.europa.esig.dss.enumerations.EncryptionAlgorithm;
+import eu.europa.esig.dss.enumerations.SignatureForm;
+import eu.europa.esig.dss.enumerations.SignatureLevel;
+import eu.europa.esig.dss.model.DSSDocument;
+import eu.europa.esig.dss.model.InMemoryDocument;
+import eu.europa.esig.dss.model.MimeType;
+import eu.europa.esig.dss.model.ToBeSigned;
+import eu.europa.esig.dss.spi.DSSUtils;
 import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.dss.web.WebAppUtils;
 import eu.europa.esig.dss.web.editor.EnumPropertyEditor;
 import eu.europa.esig.dss.web.model.DataToSignParams;
 import eu.europa.esig.dss.web.model.GetDataToSignResponse;
@@ -105,6 +106,12 @@ public class SignatureMultipleDocumentsController {
 		signatureMultipleDocumentsForm.setBase64CertificateChain(params.getCertificateChain());
 		signatureMultipleDocumentsForm.setEncryptionAlgorithm(params.getEncryptionAlgorithm());
 		signatureMultipleDocumentsForm.setSigningDate(new Date());
+
+		if (signatureMultipleDocumentsForm.isAddContentTimestamp()) {
+			signatureMultipleDocumentsForm
+					.setContentTimestamp(WebAppUtils.fromTimestampToken(signingService.getContentTimestamp(signatureMultipleDocumentsForm)));
+		}
+
 		model.addAttribute("signatureMultipleDocumentsForm", signatureMultipleDocumentsForm);
 
 		ToBeSigned dataToSign = signingService.getDataToSign(signatureMultipleDocumentsForm);
@@ -145,7 +152,7 @@ public class SignatureMultipleDocumentsController {
 			Utils.copy(new ByteArrayInputStream(signedDocument.getBytes()), response.getOutputStream());
 
 		} catch (Exception e) {
-			logger.error("An error occured while pushing file in response : " + e.getMessage(), e);
+			logger.error("An error occurred while pushing file in response : " + e.getMessage(), e);
 		}
 		return null;
 	}

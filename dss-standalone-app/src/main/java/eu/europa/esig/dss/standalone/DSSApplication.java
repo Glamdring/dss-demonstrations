@@ -1,5 +1,10 @@
 package eu.europa.esig.dss.standalone;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import eu.europa.esig.dss.standalone.controller.SignatureController;
+import eu.europa.esig.dss.ws.signature.common.RemoteDocumentSignatureService;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -7,22 +12,11 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
-
-import eu.europa.esig.dss.RemoteDocument;
-import eu.europa.esig.dss.RemoteSignatureParameters;
-import eu.europa.esig.dss.signature.RemoteDocumentSignatureService;
-import eu.europa.esig.dss.signature.RemoteDocumentSignatureServiceImpl;
-import eu.europa.esig.dss.standalone.controller.SignatureController;
-
 public class DSSApplication extends Application {
 
-	private static Logger logger = LoggerFactory.getLogger(DSSApplication.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DSSApplication.class);
 
-	private RemoteDocumentSignatureService<RemoteDocument, RemoteSignatureParameters> signatureService;
+	private RemoteDocumentSignatureService signatureService;
 
 	private Stage stage;
 
@@ -30,11 +24,10 @@ public class DSSApplication extends Application {
 	public void start(Stage stage) {
 		this.stage = stage;
 		this.stage.setTitle("Digital Signature Service Application");
-		this.stage.setResizable(false);
+		this.stage.setResizable(true);
 		this.stage.getIcons().add(new Image("/dss-logo.png"));
-
-		ApplicationContext ctx = new ClassPathXmlApplicationContext("spring/applicationContext.xml");
-		signatureService = ctx.getBean(RemoteDocumentSignatureServiceImpl.class);
+		
+		signatureService = RemoteDocumentSignatureServiceBuilder.build();
 
 		initLayout();
 	}
@@ -54,7 +47,7 @@ public class DSSApplication extends Application {
 			controller.setStage(stage);
 			controller.setSignatureService(signatureService);
 		} catch (Exception e) {
-			logger.error("Unable to init layout : " + e.getMessage(), e);
+			LOG.error("Unable to init layout : " + e.getMessage(), e);
 		}
 	}
 

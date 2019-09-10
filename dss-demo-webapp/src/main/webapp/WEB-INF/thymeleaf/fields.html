@@ -41,10 +41,10 @@
     </div>
 </div>
 
-<div class="form-group" th:fragment="field-original-file">
-    <label for="originalFile" class="col-sm-2 control-label" th:text="#{label.original.file}"></label>
+<div class="form-group" th:fragment="field-original-files">
+    <label for="originalFiles" class="col-sm-2 control-label" th:text="#{label.original.files}"></label>
     <div class="col-sm-5">
-        <input type="file" name="originalFile" id="originalFile" />
+        <input type="file" name="originalFiles" id="originalFiles" multiple="multiple" />
     </div>
 </div>
 
@@ -118,7 +118,7 @@
 
 <div class="form-group" th:fragment="field-digest-algo">
     <label for="digestAlgorithm" class="col-sm-2 control-label" th:text="#{label.digest.algorithm}"></label>
-    <div class="col-sm-5">
+    <div class="col-sm-6">
 	    <label class="radio-inline" th:each="algo : ${digestAlgos}"> 
 		    <input type="radio" th:field="*{digestAlgorithm}" th:value="${algo}" th:text="${algo}" />
 	    </label>
@@ -191,6 +191,67 @@
     <div class="col-sm-4">
     	<input type="checkbox" name="signWithExpiredCertificate" />
     </div>
+</div>
+
+<div class="form-group" id="content-timestamp-block" th:fragment="field-content-timestamp">
+    <label for="addContentTimestamp" class="col-sm-2 control-label" th:text="#{label.add.content.timestamp}"></label>
+    <div class="col-sm-4">
+    	<input type="checkbox" name="addContentTimestamp" />
+    </div>
+</div>
+
+<div class="form-group" th:fragment="field-certificate-file">
+	<label for="certificateFile" class="col-sm-3 control-label" th:text="#{label.certificate.file}"></label>
+	<div class="col-sm-3">
+		<input type="file" name="certificateFile" />
+	</div>
+	<div class="col-xs-3 col-md-offset-1">
+		<p th:if="${#fields.hasErrors('certificateFile')}" th:errors="*{certificateFile}" class="text-danger">Error</p>
+	</div>
+</div>
+
+<div class="form-group" th:fragment="field-certificate-chain-files">
+	<label for="certificateChainFiles" class="col-sm-3 control-label" th:text="#{label.certificate.chain.files.opt}"></label>
+	<div class="col-sm-3">
+		<input type="file" name="certificateChainFiles" multiple="multiple" />
+	</div>
+	<div class="col-xs-3 col-md-offset-1">
+		<p th:if="${#fields.hasErrors('certificateChainFiles')}" th:errors="*{certificateChainFiles}" class="text-danger">Error</p>
+	</div>
+</div>
+
+<div class="form-group" th:fragment="field-validation-time">
+	<label for="validationTime" class="col-sm-3 control-label" th:text="#{label.validation.time.opt}"></label>
+	<div class="col-sm-3">
+		<input type="date" name="validationTime" th:field="*{validationTime}" />
+	</div>
+	<div class="col-xs-3 col-md-offset-1">
+		<p th:if="${#fields.hasErrors('validationTime')}" th:errors="*{validationTime}" class="text-danger">Error</p>
+	</div>
+</div>
+
+<div class="form-group" th:fragment="field-certificate-tokens">
+    <label class="col-sm-3 control-label" th:text="#{label.validation.certificates.used}"></label>
+    <div class="col-sm-3">
+        <input type="checkbox" th:field="*{includeCertificateTokens}" value="false"/>
+        <span class="glyphicon glyphicon-info-sign text-info" style="margin-left : 10px" data-toggle="tooltip" 
+            data-placement="right" th:title="#{label.validation.certificate.tooltip}"></span>
+    </div>
+</div>
+
+<div class="form-group" th:fragment="field-revocation-data-tokens">
+    <label class="col-sm-3 control-label" th:text="#{label.validation.revocation}"></label>
+    <div class="col-sm-3">
+        <input type="checkbox" th:field="*{includeRevocationTokens}" value="false"/>
+        <span class="glyphicon glyphicon-info-sign text-info" style="margin-left : 10px" data-toggle="tooltip" 
+            data-placement="right" th:title="#{label.validation.revocation.tooltip}"></span>
+    </div>
+</div>
+
+<div style="display: inline;" th:fragment="field-der-pem (isPemAvailable, url)">
+    <a th:text="#{label.DER}" th:href="@{|${url}&format=#{label.DER}|}"></a>
+    <span th:if="${isPemAvailable}" th:text="'|'"></span>
+    <a th:if="${isPemAvailable}" th:text="#{label.PEM}" th:href="@{|${url}&format=#{label.PEM}|}"></a>
 </div>
 
 </html>
