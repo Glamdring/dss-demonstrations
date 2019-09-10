@@ -481,7 +481,7 @@ public class SigningService {
             actor.setActorDisplayName(signerNames);
         }
         
-        ActionData action = new ActionData(signedDocument.getDigest(params.getDigestAlgorithm()));
+        ActionData<String> action = new ActionData<>(signedDocument.getDigest(params.getDigestAlgorithm()));
         action.setAction("SIGN");
         action.setEntityType("DOCUMENT");
         if (signedDocument.getName() != null) {
