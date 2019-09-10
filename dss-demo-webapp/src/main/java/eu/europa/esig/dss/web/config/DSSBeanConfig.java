@@ -35,6 +35,7 @@ import eu.europa.esig.dss.service.crl.OnlineCRLSource;
 import eu.europa.esig.dss.service.http.commons.CommonsDataLoader;
 import eu.europa.esig.dss.service.http.commons.FileCacheDataLoader;
 import eu.europa.esig.dss.service.http.commons.OCSPDataLoader;
+import eu.europa.esig.dss.service.http.commons.TimestampDataLoader;
 import eu.europa.esig.dss.service.http.proxy.ProxyConfig;
 import eu.europa.esig.dss.service.ocsp.JdbcCacheOCSPSource;
 import eu.europa.esig.dss.service.ocsp.OnlineOCSPSource;
@@ -125,6 +126,9 @@ public class DSSBeanConfig {
     
     @Value("${rabbitmq.client.keystore.pass}")
     private String rabbitMqClientKeystorePass;
+    
+    @Autowired
+    private TSPSource tspSource;
     
 	@Autowired
 	private DataSource dataSource;
@@ -232,7 +236,7 @@ public class DSSBeanConfig {
 	@Bean
 	public PAdESService padesService() throws Exception {
 		PAdESService service = new PAdESService(certificateVerifier());
-		service.setTspSource(tspSource);
+		service.setTspSource(tspSource));
 		service.setSignatureImageDir(new File(signatureImageDir));
 		return service;
 	}
