@@ -466,7 +466,7 @@ public class SigningService {
         try {
             ldapName = new LdapName(principal);
         } catch (InvalidNameException ex) {
-            throw new DSSException(ex);
+            throw new RuntimeException(ex);
         }
         
         ActorData actor = new ActorData(params.getSigningCertificate().getCertificate().getSerialNumber().toString());
