@@ -1,11 +1,9 @@
 package eu.europa.esig.dss.web.config;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStore.PasswordProtection;
-import java.sql.SQLException;
 
 import javax.sql.DataSource;
 
@@ -19,6 +17,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportResource;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 
 import com.logsentinel.LogSentinelClient;
@@ -88,9 +87,6 @@ public class DSSBeanConfig {
 	@Value("${oj.content.keystore.password}")
 	private String ksPassword;
 
-	@Value("${dss.tsa.url}")
-	private String tsaUrl;
-
 	@Value("${dss.server.signing.keystore.type}")
 	private String serverSigningKeystoreType;
 
@@ -100,9 +96,6 @@ public class DSSBeanConfig {
 	@Value("${dss.server.signing.keystore.password}")
 	private String serverSigningKeystorePassword;
 	
-	@Value("${pdf.signature.image.dir}")
-	private String signatureImageDir;
-
     @Value("${logsentinel.organization.id}")
     private String logsentinelOrgId;
 
@@ -236,8 +229,7 @@ public class DSSBeanConfig {
 	@Bean
 	public PAdESService padesService() throws Exception {
 		PAdESService service = new PAdESService(certificateVerifier());
-		service.setTspSource(tspSource));
-		service.setSignatureImageDir(new File(signatureImageDir));
+		service.setTspSource(tspSource);
 		return service;
 	}
 

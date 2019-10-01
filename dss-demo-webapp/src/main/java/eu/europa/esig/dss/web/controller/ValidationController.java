@@ -3,6 +3,7 @@ package eu.europa.esig.dss.web.controller;
 import java.awt.Font;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +27,7 @@ import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,9 +53,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.RpcClient;
 
-import eu.europa.esig.dss.SignatureImageParameters.SignerTextImageVerticalAlignment;
-import eu.europa.esig.dss.SignatureImageParameters.VisualSignaturePagePlacement;
-import eu.europa.esig.dss.SignatureImageTextParameters.SignerPosition;
 import eu.europa.esig.dss.diagnostic.CertificateWrapper;
 import eu.europa.esig.dss.diagnostic.DiagnosticData;
 import eu.europa.esig.dss.diagnostic.DiagnosticDataFacade;
@@ -71,11 +70,15 @@ import eu.europa.esig.dss.model.InMemoryDocument;
 import eu.europa.esig.dss.model.MimeType;
 import eu.europa.esig.dss.model.SignatureValue;
 import eu.europa.esig.dss.model.ToBeSigned;
+import eu.europa.esig.dss.model.pades.DSSJavaFont;
+import eu.europa.esig.dss.model.pades.SignatureImageParameters;
+import eu.europa.esig.dss.model.pades.SignatureImageParameters.VisualSignatureAlignmentVertical;
+import eu.europa.esig.dss.model.pades.SignatureImageParameters.VisualSignaturePagePlacement;
+import eu.europa.esig.dss.model.pades.SignatureImageTextParameters;
+import eu.europa.esig.dss.model.pades.SignatureImageTextParameters.SignerTextHorizontalAlignment;
+import eu.europa.esig.dss.model.pades.SignatureImageTextParameters.SignerTextPosition;
 import eu.europa.esig.dss.model.x509.CertificateToken;
 import eu.europa.esig.dss.pades.PAdESSignatureParameters;
-import eu.europa.esig.dss.pades.SignatureImageParameters;
-import eu.europa.esig.dss.pades.SignatureImageTextParameters;
-import eu.europa.esig.dss.pades.SignatureImageTextParameters.SignerTextHorizontalAlignment;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.spi.DSSUtils;
 import eu.europa.esig.dss.utils.Utils;
@@ -89,7 +92,6 @@ import eu.europa.esig.dss.web.exception.BadRequestException;
 import eu.europa.esig.dss.web.model.TokenDTO;
 import eu.europa.esig.dss.web.model.ValidationForm;
 import eu.europa.esig.dss.web.service.FOPService;
-import eu.europa.esig.dss.ws.dto.RemoteDocument;
 
 @Controller
 @SessionAttributes({ "simpleReportXml", "detailedReportXml", "diagnosticDataXml" })
@@ -132,6 +134,9 @@ public class ValidationController extends AbstractValidationController {
 	
 	@Value("${rabbitmq.routingKey}")
     private String rabbitMqRoutingKey;
+	
+	@Value("${pdf.signature.image.dir}")
+    private String signatureImageDir;
 	
 	private ObjectMapper objectMapper = new ObjectMapper();
 	
@@ -508,25 +513,28 @@ public class ValidationController extends AbstractValidationController {
 
     private SignatureImageParameters createImageParams() {
         SignatureImageParameters imageParams = new SignatureImageParameters();
-        imageParams.setImageDocument(new RemoteDocument(null, null, "Evrotrust_background.png"));
+        try {
+            imageParams.setImageDocument(FileUtils.readFileToByteArray(new File(signatureImageDir + "Evrotrust_background.png")));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         imageParams.setxAxis(230);
         imageParams.setyAxis(-67);
         imageParams.setWidth(140);
         imageParams.setZoom(100);
-        imageParams.setSignerTextImageVerticalAlignment(SignerTextImageVerticalAlignment.MIDDLE);
+        imageParams.setAlignmentVertical(VisualSignatureAlignmentVertical.MIDDLE);
         imageParams.setTextParameters(new SignatureImageTextParameters());
-        imageParams.getTextParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
+        imageParams.getTextParameters().setSignerTextPosition(SignerTextPosition.FOREGROUND);
         imageParams.getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
-        imageParams.getTextParameters().setRightPadding(4);
+        imageParams.getTextParameters().setPadding(4);
         imageParams.getTextParameters().setText("Evrotrust Qualified\nValidation Service");
-        imageParams.getTextParameters().setFont(new Font("helvetica", Font.PLAIN, 18));
+        imageParams.getTextParameters().setFont(new DSSJavaFont("helvetica", Font.PLAIN, 18));
         
         imageParams.setTextRightParameters(new SignatureImageTextParameters());
         imageParams.getTextRightParameters().setText("Digitally Signed by Evrotrust\nQualified Validation Authority.\nQualified Time stamped.\n" + 
                 "Compliant with eIDAS.");
-        imageParams.getTextRightParameters().setSignerNamePosition(SignerPosition.FOREGROUND);
-        imageParams.getTextRightParameters().setSignerNamePosition(SignerPosition.LEFT);
-        imageParams.getTextRightParameters().setFont(new Font("helvetica", Font.PLAIN, 12));
+        imageParams.getTextRightParameters().setSignerTextPosition(SignerTextPosition.FOREGROUND);
+        imageParams.getTextRightParameters().setFont(new DSSJavaFont("helvetica", Font.PLAIN, 12));
         imageParams.setDateFormat("dd.MM.yyyy HH:mm:ss XXX''");
         
         return imageParams;

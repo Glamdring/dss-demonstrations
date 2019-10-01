@@ -291,6 +291,10 @@
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
+            <groupId>eu.europa.ec.joinup.sd-dss</groupId>
+            <artifactId>dss-model</artifactId>
+        </dependency>
+		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 			<artifactId>dss-certificate-validation-rest</artifactId>
 			<scope>compile</scope>
