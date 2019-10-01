@@ -9,7 +9,8 @@
 					<ul class="nav nav-tabs nav-justified hidden-print" id="tabsResult" style="margin-top: 25px;">
 					    <li role="presentation" class="active"><a href="#simple-report" th:text="#{label.simple.report}"></a></li>
 					    <li role="presentation"><a href="#detailed-report" th:text="#{label.detailed.report}"></a></li>
-					    <li role="presentation"><a href="#diagnostic-tree" th:text="#{label.diagnostic.tree}"></a></li>
+					    <!-- li role="presentation"><a href="#diagnostic-tree" th:text="#{label.diagnostic.tree}"></a></li-->
+					    <li th:if="${etsiValidationReport} != null" role="presentation"><a href="#etsi-validation-report" th:text="#{label.etsi.validation.report}"></a></li>
 					</ul>
 					
 					<div class="tab-content" style="margin-top: 10px">
@@ -28,9 +29,9 @@
 					    </div>
 					    <div role="tabpanel" class="tab-pane fade" id="detailed-report">
 					        <div class="btn-group pull-right hidden-print" role="toolbar" style="margin : 4px;">
-					            <button type="button" class="btn btn-default" onclick="window.print();">
+					            <!-- button type="button" class="btn btn-default" onclick="window.print();">
 					                <span class="glyphicon glyphicon-print"></span> Print
-					            </button>
+					            </button-->
 					            <a class="btn btn-default" th:href="@{/validation/download-detailed-report?sign=true}" role="button">
 					                <span class="glyphicon glyphicon-save-file"></span> Download as PDF
 					            </a>
