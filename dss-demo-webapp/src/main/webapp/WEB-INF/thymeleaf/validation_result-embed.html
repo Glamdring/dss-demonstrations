@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-    <head th:replace="template :: header"></head>
+    <head th:replace="fragment/head :: head"></head>
 	<body>
 		<div class="container">
 			<div class="row">
@@ -17,9 +17,9 @@
 					
 					    <div role="tabpanel" class="tab-pane fade in active" id="simple-report">
 					        <div class="btn-group pull-right hidden-print" role="toolbar" style="margin : 4px;">
-					            <button type="button" class="btn btn-default" onclick="window.print();">
+					            <!-- button type="button" class="btn btn-default" onclick="window.print();">
 					                <span class="glyphicon glyphicon-print"></span> Print
-					            </button>
+					            </button-->
 					            <a class="btn btn-default" th:href="@{/validation/download-simple-report?sign=true}" role="button">
 					                <span class="glyphicon glyphicon-save-file"></span> Download as PDF
 					            </a>

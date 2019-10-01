@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-    <head th:replace="template :: header"></head>
+    <head th:replace="fragment/head :: head"></head>
 	<body>
 		<div class="container">
 			<div class="row">
@@ -11,7 +11,7 @@
 					
 					   	<div th:replace="fields::field-signed-file"></div>
 											
-						<div th:replace="fields::field-original-file"></div>
+						<div th:replace="fields::field-original-files"></div>
 					
 					    <input type="hidden" value="ARCHIVAL_DATA" th:field="*{validationLevel}" />
                         
