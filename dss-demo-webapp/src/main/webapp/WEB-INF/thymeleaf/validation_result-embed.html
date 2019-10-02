@@ -42,6 +42,9 @@
 					    <div role="tabpanel" class="tab-pane fade" id="diagnostic-tree">
 							<pre class="prettyprint lang-xml" th:text="${diagnosticTree}"></pre>
 					    </div>
+					    <div th:if="${etsiValidationReport} != null" role="tabpanel" class="tab-pane fade" id="etsi-validation-report">
+                            <pre class="prettyprint lang-xml" th:text="${etsiValidationReport}"></pre>
+                        </div>
 					</div>
 				
 					<script type="text/javascript">
