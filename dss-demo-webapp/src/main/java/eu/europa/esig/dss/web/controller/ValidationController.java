@@ -1,5 +1,6 @@
 package eu.europa.esig.dss.web.controller;
 
+import java.awt.Color;
 import java.awt.Font;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -506,9 +507,7 @@ public class ValidationController extends AbstractValidationController {
             return Base64.getMimeDecoder().decode(signedHash);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
-            
         }
-        
     }
 
     private SignatureImageParameters createImageParams() {
@@ -519,16 +518,16 @@ public class ValidationController extends AbstractValidationController {
             throw new RuntimeException(e);
         }
         imageParams.setxAxis(230);
-        imageParams.setyAxis(-67);
+        imageParams.setyAxis(-65);
         imageParams.setWidth(140);
         imageParams.setZoom(100);
-        imageParams.setAlignmentVertical(VisualSignatureAlignmentVertical.MIDDLE);
         imageParams.setTextParameters(new SignatureImageTextParameters());
         imageParams.getTextParameters().setSignerTextPosition(SignerTextPosition.FOREGROUND);
         imageParams.getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
         imageParams.getTextParameters().setPadding(4);
         imageParams.getTextParameters().setText("Evrotrust Qualified\nValidation Service");
         imageParams.getTextParameters().setFont(new DSSJavaFont("helvetica", Font.PLAIN, 18));
+        imageParams.getTextParameters().setBackgroundColor(new Color(255, 255, 255, 0));
         
         imageParams.setTextRightParameters(new SignatureImageTextParameters());
         imageParams.getTextRightParameters().setText("Digitally Signed by Evrotrust\nQualified Validation Authority.\nQualified Time stamped.\n" + 
@@ -536,6 +535,7 @@ public class ValidationController extends AbstractValidationController {
         imageParams.getTextRightParameters().setSignerTextPosition(SignerTextPosition.FOREGROUND);
         imageParams.getTextRightParameters().setFont(new DSSJavaFont("helvetica", Font.PLAIN, 12));
         imageParams.setDateFormat("dd.MM.yyyy HH:mm:ss XXX''");
+        imageParams.getTextRightParameters().setBackgroundColor(new Color(255, 255, 255, 0));
         
         return imageParams;
     }
