@@ -18,7 +18,8 @@ import eu.europa.esig.validationreport.jaxb.ValidationReportType;
 
 public abstract class AbstractValidationController {
 
-	protected static final String SIMPLE_REPORT_ATTRIBUTE = "simpleReportXml";
+	protected static final String ETSI_VALIDATION_REPORT_ATTRIBUTE = "etsiValidationReport";
+    protected static final String SIMPLE_REPORT_ATTRIBUTE = "simpleReportXml";
 	protected static final String DETAILED_REPORT_ATTRIBUTE = "detailedReportXml";
 	protected static final String DIAGNOSTIC_DATA_ATTRIBUTE = "diagnosticDataXml";
 
@@ -45,8 +46,9 @@ public abstract class AbstractValidationController {
 			Reports sigReports = (Reports) reports;
 			ValidationReportType etsiValidationReportJaxb = sigReports.getEtsiValidationReportJaxb();
 			if (etsiValidationReportJaxb != null) {
-				model.addAttribute("etsiValidationReport", sigReports.getXmlValidationReport());
+				model.addAttribute(ETSI_VALIDATION_REPORT_ATTRIBUTE, sigReports.getXmlValidationReport());
 			}
+		    model.addAttribute("validationPolicy", sigReports.getValidationPolicy());
 		}
 
 		// Get Certificates for which binaries are available
@@ -58,6 +60,7 @@ public abstract class AbstractValidationController {
 
 		// Get Timestamps for which binaries are available
 		model.addAttribute("allTimestamps", buildTokenDtos(diagnosticData.getTimestampSet()));
+		
 	}
 
 	private Set<TokenDTO> buildTokenDtos(Set<? extends AbstractTokenProxy> abstractTokens) {

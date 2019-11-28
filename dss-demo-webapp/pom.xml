@@ -301,6 +301,10 @@
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
+			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
+			<artifactId>dss-model</artifactId>
+		</dependency>
+		<dependency>
 		    <groupId>org.apache.cxf</groupId>
 		    <artifactId>cxf-rt-rs-client</artifactId>
 			<scope>test</scope>
@@ -360,6 +364,23 @@
 			</exclusions>
 		</dependency>
 		
+		        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-css</artifactId>
+            <version>1.10</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-svggen</artifactId>
+            <version>1.10</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-util</artifactId>
+            <version>1.9</version>
+        </dependency>
+		
+		
 		<dependency>
 			<groupId>org.webjars.bower</groupId>
 			<artifactId>google-code-prettify</artifactId>
@@ -385,8 +406,15 @@
 		<dependency>
 			<groupId>org.hibernate</groupId>
 			<artifactId>hibernate-validator</artifactId>
-			<version>5.4.2.Final</version>
+			<version>5.4.3.Final</version>
 		</dependency>
+		
+	        <dependency>
+            <groupId>com.logsentinel</groupId>
+            <artifactId>logsentinel-java-client</artifactId>
+            <version>0.1.1</version>
+        </dependency>
+		
 		
 		<dependency>
 			<groupId>junit</groupId>

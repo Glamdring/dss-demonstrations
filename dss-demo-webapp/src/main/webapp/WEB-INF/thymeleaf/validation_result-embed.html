@@ -39,10 +39,19 @@
 					    
 					    	<div th:utext="${detailedReport}"></div>
 					    </div>
-					    <div role="tabpanel" class="tab-pane fade" id="diagnostic-tree">
-							<pre class="prettyprint lang-xml" th:text="${diagnosticTree}"></pre>
-					    </div>
+					    
 					    <div th:if="${etsiValidationReport} != null" role="tabpanel" class="tab-pane fade" id="etsi-validation-report">
+					       <div class="btn-group pull-right hidden-print" role="toolbar" style="margin : 4px;">
+                               <a class="btn btn-default" th:href="@{/validation/download-etsi-report?sign=true}" role="button">
+                                   <span class="glyphicon glyphicon-save-file"></span> Download as XML
+                                </a>
+                            </div>
+					        <div class="panel panel-primary">
+								<div class="panel-heading" data-target="#collapsePolicy" data-toggle="collapse" th:text="${validationPolicy.policyName}"></div>
+								<div class="panel-body collapse in" id="collapsePolicy">
+								<p th:text="${validationPolicy.policyDescription}"></p>
+								</div>
+						    </div>
                             <pre class="prettyprint lang-xml" th:text="${etsiValidationReport}"></pre>
                         </div>
 					</div>

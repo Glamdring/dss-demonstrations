@@ -1,43 +1,24 @@
 package eu.europa.esig.dss.web.controller;
 
-import java.awt.Color;
-import java.awt.Font;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Date;
-import java.util.Enumeration;
 import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 
-import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.InitBinder;
@@ -49,38 +30,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.SessionAttributes;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.RpcClient;
-
 import eu.europa.esig.dss.diagnostic.CertificateWrapper;
 import eu.europa.esig.dss.diagnostic.DiagnosticData;
 import eu.europa.esig.dss.diagnostic.DiagnosticDataFacade;
 import eu.europa.esig.dss.diagnostic.RevocationWrapper;
 import eu.europa.esig.dss.diagnostic.TimestampWrapper;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlDiagnosticData;
-import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.RevocationType;
-import eu.europa.esig.dss.enumerations.SignatureAlgorithm;
-import eu.europa.esig.dss.enumerations.SignatureLevel;
-import eu.europa.esig.dss.enumerations.SignaturePackaging;
 import eu.europa.esig.dss.enumerations.TimestampType;
 import eu.europa.esig.dss.model.DSSDocument;
 import eu.europa.esig.dss.model.InMemoryDocument;
 import eu.europa.esig.dss.model.MimeType;
-import eu.europa.esig.dss.model.SignatureValue;
-import eu.europa.esig.dss.model.ToBeSigned;
-import eu.europa.esig.dss.model.pades.DSSJavaFont;
-import eu.europa.esig.dss.model.pades.SignatureImageParameters;
-import eu.europa.esig.dss.model.pades.SignatureImageParameters.VisualSignatureAlignmentVertical;
-import eu.europa.esig.dss.model.pades.SignatureImageParameters.VisualSignaturePagePlacement;
-import eu.europa.esig.dss.model.pades.SignatureImageTextParameters;
-import eu.europa.esig.dss.model.pades.SignatureImageTextParameters.SignerTextHorizontalAlignment;
-import eu.europa.esig.dss.model.pades.SignatureImageTextParameters.SignerTextPosition;
-import eu.europa.esig.dss.model.x509.CertificateToken;
-import eu.europa.esig.dss.pades.PAdESSignatureParameters;
-import eu.europa.esig.dss.pades.signature.PAdESService;
+import eu.europa.esig.dss.policy.ValidationPolicyFacade;
 import eu.europa.esig.dss.spi.DSSUtils;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
@@ -93,9 +54,10 @@ import eu.europa.esig.dss.web.exception.BadRequestException;
 import eu.europa.esig.dss.web.model.TokenDTO;
 import eu.europa.esig.dss.web.model.ValidationForm;
 import eu.europa.esig.dss.web.service.FOPService;
+import eu.europa.esig.dss.ws.validation.common.ReportSigner;
 
 @Controller
-@SessionAttributes({ "simpleReportXml", "detailedReportXml", "diagnosticDataXml" })
+@SessionAttributes({ "simpleReportXml", "detailedReportXml", "diagnosticDataXml", "etsiValidationReport" })
 @RequestMapping(value = "/validation")
 public class ValidationController extends AbstractValidationController {
 
@@ -116,52 +78,7 @@ public class ValidationController extends AbstractValidationController {
 	private Resource defaultPolicy;
 
 	@Autowired
-    private PAdESService padesService;
-	
-	@Value("${validation.signing.certificate.jks}")
-    private String signingCertificateJksPath;
-	
-	@Value("${validation.signing.certificate.jks.pass}")
-    private String signingCertificateJksPass;
-	
-	private X509Certificate signingCertificate;
-	private Certificate[] signingCertificateChain;
-	
-	@Autowired(required = false)
-	private Connection amqpConnection;
-	
-	@Value("${rabbitmq.exchange}")
-	private String rabbitMqExchange;
-	
-	@Value("${rabbitmq.routingKey}")
-    private String rabbitMqRoutingKey;
-	
-	@Value("${pdf.signature.image.dir}")
-    private String signatureImageDir;
-	
-	private ObjectMapper objectMapper = new ObjectMapper();
-	
-	@PostConstruct
-	public void init() throws IOException, CertificateException {
-	    if (StringUtils.isEmpty(signingCertificateJksPath)) {
-	        return;
-	    }
-	    
-	    try {
-	        KeyStore store = KeyStore.getInstance("JKS");
-	        store.load(new FileInputStream(signingCertificateJksPath), signingCertificateJksPass.toCharArray());
-	        Enumeration<String> aliases = store.aliases();
-	        signingCertificate = (X509Certificate) store.getCertificate(aliases.nextElement());
-	        signingCertificateChain = new Certificate[store.size() - 1];
-	        int i = 0;
-	        while (aliases.hasMoreElements()) {
-	            signingCertificateChain[i++] = store.getCertificate(aliases.nextElement());
-	        }
-	        
-	    } catch (Exception ex) {
-	        logger.warn("Failed to find validation certificate from path " + signingCertificateJksPath, ex);
-	    }
-	}
+    private ReportSigner reportSigner;
 	
 	@InitBinder
 	public void initBinder(WebDataBinder binder) {
@@ -202,22 +119,31 @@ public class ValidationController extends AbstractValidationController {
         }
         
         String reportXml;
-        if (request.isSimpleReport()) {
+        if (request.getReportType() == ReportType.SIMPLE) {
             reportXml = reports.getXmlSimpleReport();
-        } else {
+        } else if (request.getReportType() == ReportType.DETAILED){
             reportXml = reports.getXmlDetailedReport();
+        } else if (request.getReportType() == ReportType.ETSI) {
+            reportXml = reports.getXmlValidationReport();
+        } else {
+            throw new IllegalArgumentException("Unsupported report type " + request.getReportType());
         }
         
         try {
-            ByteArrayOutputStream reportOut = new ByteArrayOutputStream();
-            fopService.generateSimpleReport(reportXml, reportOut);
-            ByteArrayOutputStream signedReportOut = new ByteArrayOutputStream();
-            signReport(reportOut.toByteArray(), signedReportOut, request.getSessionId() != null ? request.getSessionId() : "");
-            
             ValidationDto response = new ValidationDto();
-            response.setBase64bytes(Base64.getEncoder().encodeToString(signedReportOut.toByteArray()));
+            ByteArrayOutputStream reportOut = new ByteArrayOutputStream();
+            if (request.getReportType() == ReportType.ETSI) {
+                reportSigner.signReportXml(reportXml, reportOut, request.getSessionId() != null ? request.getSessionId() : "");
+                response.setXml(new String(reportOut.toByteArray(), StandardCharsets.UTF_8));
+            } else {
+                fopService.generateSimpleReport(reportXml, reportOut);
+                ByteArrayOutputStream signedReportOut = new ByteArrayOutputStream();
+                reportSigner.signReport(reportOut.toByteArray(), signedReportOut, request.getSessionId() != null ? request.getSessionId() : "");
+                response.setBase64bytes(Base64.getEncoder().encodeToString(signedReportOut.toByteArray()));
+            }
+            
             response.setSessionId(request.getSessionId());
-            response.setSimpleReport(request.isSimpleReport());
+            response.setReportType(request.getReportType());
             response.setValidationLevel(request.getValidationLevel());
             return response;
         } catch (Exception ex) {
@@ -318,7 +244,7 @@ public class ValidationController extends AbstractValidationController {
 			if (sign) {
 			    ByteArrayOutputStream out = new ByteArrayOutputStream();
 			    fopService.generateSimpleReport(simpleReport, out);
-			    signReport(out.toByteArray(), response.getOutputStream(), session.getId());
+			    reportSigner.signReport(out.toByteArray(), response.getOutputStream(), session.getId());
 			} else {
 			    fopService.generateSimpleReport(simpleReport, response.getOutputStream());
 			}
@@ -340,7 +266,7 @@ public class ValidationController extends AbstractValidationController {
 			if (sign) {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 fopService.generateDetailedReport(detailedReport, out);
-                signReport(out.toByteArray(), response.getOutputStream(), session.getId());
+                reportSigner.signReport(out.toByteArray(), response.getOutputStream(), session.getId());
             } else {
                 fopService.generateDetailedReport(detailedReport, response.getOutputStream());
             }
@@ -349,6 +275,25 @@ public class ValidationController extends AbstractValidationController {
 		}
 	}
 
+    @RequestMapping(value = "/download-etsi-report")
+    public void downloadETSIReport(@RequestParam(value = "sign", required = false, defaultValue = "false") boolean sign, 
+            HttpSession session, HttpServletResponse response) {
+        try {
+            String etsiReport = (String) session.getAttribute(ETSI_VALIDATION_REPORT_ATTRIBUTE);
+
+            response.setContentType(MimeType.XML.getMimeTypeString());
+            response.setHeader("Content-Disposition", "attachment; filename=DSS-ETSI-Report.xml");
+
+            if (sign) {
+                reportSigner.signReportXml(etsiReport, response.getOutputStream(), session.getId());
+            } else {
+                response.getWriter().write(etsiReport);
+            }
+        } catch (Exception e) {
+            logger.error("An error occurred while signing XML for ETSI report : " + e.getMessage(), e);
+        }
+    }
+    
 	@RequestMapping(value = "/download-certificate")
 	public void downloadCertificate(@RequestParam(value = "id") String id, HttpSession session, HttpServletResponse response) {
 		DiagnosticData diagnosticData = getDiagnosticData(session);
@@ -454,92 +399,6 @@ public class ValidationController extends AbstractValidationController {
 		return null;
 	}
 
-    private void signReport(byte[] byteArray, OutputStream outputStream, String sessionId) throws IOException {
-        PAdESSignatureParameters params = new PAdESSignatureParameters();
-        params.bLevel().setTrustAnchorBPPolicy(true);
-        params.bLevel().setSigningDate(new Date());
-        params.setDigestAlgorithm(DigestAlgorithm.SHA256);
-        params.setSignWithExpiredCertificate(false);
-        params.setSignatureLevel(SignatureLevel.PAdES_BASELINE_LTA);
-        params.setSignaturePackaging(SignaturePackaging.ENVELOPED);
-        params.setValidationReportSigning(true);
-        
-        if (signingCertificateChain != null) {
-            params.setCertificateChain(Stream.of(signingCertificateChain).map(c -> new CertificateToken((X509Certificate) c)).collect(Collectors.toList()));
-        }
-        if (signingCertificate != null) {
-            params.setSigningCertificate(new CertificateToken(signingCertificate));
-        }
-        
-        SignatureImageParameters signatureParams = createImageParams();
-        signatureParams.setPagePlacement(VisualSignaturePagePlacement.SINGLE_PAGE);
-        signatureParams.setPage(-1);
-        params.setSignatureImageParameters(signatureParams);
-        
-        DSSDocument document = new InMemoryDocument(byteArray);
-        if (amqpConnection != null) {
-            ToBeSigned toBeSigned = padesService.getDataToSign(document, params);
-            SignatureValue signature = new SignatureValue();
-            signature.setAlgorithm(SignatureAlgorithm.RSA_SHA256);
-            
-            byte[] signatureValue = signRemotely(toBeSigned.getBytes(), sessionId + ":" + UUID.randomUUID());
-            signature.setValue(signatureValue);
-            DSSDocument signed = padesService.signDocument(document, params, signature);
-            IOUtils.copy(signed.openStream(), outputStream);
-        } else {
-            IOUtils.copy(document.openStream(), outputStream);
-        }
-        
-    }
-
-    private byte[] signRemotely(byte[] bytes, String transactionId) {
-        try {
-            byte[] hashBytes = DigestUtils.sha256(bytes);
-            Channel channel = amqpConnection.createChannel();
-            RpcClient rpcClient = new RpcClient(channel, rabbitMqExchange, rabbitMqRoutingKey);
-            String hash = Base64.getMimeEncoder().encodeToString(hashBytes);
-            String request = "{\"documentHash\":\"" + hash + "\",\"transactionId\":\"" + transactionId + "\"}";
-            logger.info("Calling RabbitMQ for remote signing with request={}", request);
-            String response = rpcClient.stringCall(request);
-            logger.info("Response received: " + response);
-            String signedHash = objectMapper.readTree(response).get("documentHash").asText();
-            logger.info("Hash received: " + signedHash);
-            return Base64.getMimeDecoder().decode(signedHash);
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    private SignatureImageParameters createImageParams() {
-        SignatureImageParameters imageParams = new SignatureImageParameters();
-        try {
-            imageParams.setImageDocument(FileUtils.readFileToByteArray(new File(signatureImageDir + "Evrotrust_background.png")));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        imageParams.setxAxis(230);
-        imageParams.setyAxis(-65);
-        imageParams.setWidth(140);
-        imageParams.setZoom(100);
-        imageParams.setTextParameters(new SignatureImageTextParameters());
-        imageParams.getTextParameters().setSignerTextPosition(SignerTextPosition.FOREGROUND);
-        imageParams.getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
-        imageParams.getTextParameters().setPadding(4);
-        imageParams.getTextParameters().setText("Evrotrust Qualified\nValidation Service");
-        imageParams.getTextParameters().setFont(new DSSJavaFont("helvetica", Font.PLAIN, 18));
-        imageParams.getTextParameters().setBackgroundColor(new Color(255, 255, 255, 0));
-        
-        imageParams.setTextRightParameters(new SignatureImageTextParameters());
-        imageParams.getTextRightParameters().setText("Digitally Signed by Evrotrust\nQualified Validation Authority.\nQualified Time stamped.\n" + 
-                "Compliant with eIDAS.");
-        imageParams.getTextRightParameters().setSignerTextPosition(SignerTextPosition.FOREGROUND);
-        imageParams.getTextRightParameters().setFont(new DSSJavaFont("helvetica", Font.PLAIN, 12));
-        imageParams.setDateFormat("dd.MM.yyyy HH:mm:ss XXX''");
-        imageParams.getTextRightParameters().setBackgroundColor(new Color(255, 255, 255, 0));
-        
-        return imageParams;
-    }
-    
 	@ModelAttribute("validationLevels")
 	public ValidationLevel[] getValidationLevels() {
 		return new ValidationLevel[] { ValidationLevel.BASIC_SIGNATURES, ValidationLevel.LONG_TERM_DATA, ValidationLevel.ARCHIVAL_DATA };
@@ -552,8 +411,9 @@ public class ValidationController extends AbstractValidationController {
 	
 	public static class ValidationDto {
 	    private String base64bytes;
+	    private String xml;
 	    private ValidationLevel validationLevel = ValidationLevel.ARCHIVAL_DATA;
-	    private boolean simpleReport;
+	    private ReportType reportType;
 	    private String sessionId;
 
         public String getBase64bytes() {
@@ -564,12 +424,12 @@ public class ValidationController extends AbstractValidationController {
             this.base64bytes = base64bytes;
         }
 
-        public boolean isSimpleReport() {
-            return simpleReport;
+        public ReportType getReportType() {
+            return reportType;
         }
 
-        public void setSimpleReport(boolean simpleReport) {
-            this.simpleReport = simpleReport;
+        public void setReportType(ReportType reportType) {
+            this.reportType = reportType;
         }
 
         public ValidationLevel getValidationLevel() {
@@ -587,5 +447,17 @@ public class ValidationController extends AbstractValidationController {
         public void setSessionId(String sessionId) {
             this.sessionId = sessionId;
         }
+
+        public String getXml() {
+            return xml;
+        }
+
+        public void setXml(String xml) {
+            this.xml = xml;
+        }
+	}
+	
+	public static enum ReportType {
+	    SIMPLE, DETAILED, ETSI
 	}
 }

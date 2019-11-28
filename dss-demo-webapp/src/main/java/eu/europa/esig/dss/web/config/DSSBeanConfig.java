@@ -4,6 +4,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStore.PasswordProtection;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
+import java.util.Enumeration;
 
 import javax.sql.DataSource;
 
@@ -19,6 +22,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportResource;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.util.StringUtils;
 
 import com.logsentinel.LogSentinelClient;
 import com.logsentinel.LogSentinelClientBuilder;
@@ -54,6 +58,7 @@ import eu.europa.esig.dss.ws.server.signing.common.RemoteSignatureTokenConnectio
 import eu.europa.esig.dss.ws.signature.common.RemoteDocumentSignatureServiceImpl;
 import eu.europa.esig.dss.ws.signature.common.RemoteMultipleDocumentsSignatureServiceImpl;
 import eu.europa.esig.dss.ws.validation.common.RemoteDocumentValidationService;
+import eu.europa.esig.dss.ws.validation.common.ReportSigner;
 import eu.europa.esig.dss.xades.signature.XAdESService;
 
 @Configuration
@@ -120,12 +125,33 @@ public class DSSBeanConfig {
     @Value("${rabbitmq.client.keystore.pass}")
     private String rabbitMqClientKeystorePass;
     
+    @Value("${validation.signing.certificate.jks}")
+    private String signingCertificateJksPath;
+    
+    @Value("${validation.signing.certificate.jks.pass}")
+    private String signingCertificateJksPass;
+    
+    @Value("${rabbitmq.exchange}")
+    private String rabbitMqExchange;
+    
+    @Value("${rabbitmq.routingKey}")
+    private String rabbitMqRoutingKey;
+    
+    @Value("${pdf.signature.image.dir}")
+    private String signatureImageDir;
+    
     @Autowired
     private TSPSource tspSource;
     
 	@Autowired
 	private DataSource dataSource;
 
+	@Autowired
+    private PAdESService padesService;
+	
+	@Autowired
+    private XAdESService xadesService;
+	
 	// can be null
 	@Autowired(required = false)
 	private ProxyConfig proxyConfig;
@@ -206,6 +232,37 @@ public class DSSBeanConfig {
 		certificateVerifier.setDataLoader(dataLoader());
 		return certificateVerifier;
 	}
+	
+	@Bean
+    public ReportSigner reportSigner() throws Exception {
+        ReportSigner reportSigner = new ReportSigner();
+        if (!StringUtils.isEmpty(signingCertificateJksPath)) {
+            try {
+                KeyStore store = KeyStore.getInstance("JKS");
+                store.load(new FileInputStream(signingCertificateJksPath), signingCertificateJksPass.toCharArray());
+                Enumeration<String> aliases = store.aliases();
+                X509Certificate signingCertificate = (X509Certificate) store.getCertificate(aliases.nextElement());
+                Certificate[] signingCertificateChain = new Certificate[store.size() - 1];
+                int i = 0;
+                while (aliases.hasMoreElements()) {
+                    signingCertificateChain[i++] = store.getCertificate(aliases.nextElement());
+                }
+                reportSigner.setSigningCertificate(signingCertificate);
+                reportSigner.setSigningCertificateChain(signingCertificateChain);
+                reportSigner.setAmqpConnection(amqpConnection());
+                reportSigner.setPadesService(padesService);
+                reportSigner.setXadesService(xadesService);
+                reportSigner.setRabbitMqExchange(rabbitMqExchange);
+                reportSigner.setRabbitMqRoutingKey(rabbitMqRoutingKey);
+                reportSigner.setSignatureImageDir(signatureImageDir);
+                reportSigner.setSigningCertificateJksPass(signingCertificateJksPass);
+                reportSigner.setSigningCertificateJksPath(signingCertificateJksPath);
+            } catch (Exception ex) {
+                logger.warn("Failed to find validation certificate from path " + signingCertificateJksPath, ex);
+            }
+        }
+        return reportSigner;
+    }
 
 	@Bean
 	public ClassPathResource defaultPolicy() {
@@ -275,6 +332,7 @@ public class DSSBeanConfig {
 	public RemoteDocumentValidationService remoteValidationService() throws Exception {
 		RemoteDocumentValidationService service = new RemoteDocumentValidationService();
 		service.setVerifier(certificateVerifier());
+		service.setReportSigner(reportSigner());
 		return service;
 	}
 	
