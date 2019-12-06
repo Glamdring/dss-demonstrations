@@ -140,6 +140,18 @@ public class DSSBeanConfig {
     @Value("${pdf.signature.image.dir}")
     private String signatureImageDir;
     
+    @Value("${validation.signing.image.x}")
+    private int validationSigningImageX;
+    
+    @Value("${validation.signing.image.y}")
+    private int validationSigningImageY;
+    
+    @Value("${validation.signing.image.width}")
+    private int validationSigningImageWidth;
+    
+    @Value("${validation.signing.image.height}")
+    private int validationSigningImageHeight;
+    
     @Autowired
     private TSPSource tspSource;
     
@@ -257,6 +269,10 @@ public class DSSBeanConfig {
                 reportSigner.setSignatureImageDir(signatureImageDir);
                 reportSigner.setSigningCertificateJksPass(signingCertificateJksPass);
                 reportSigner.setSigningCertificateJksPath(signingCertificateJksPath);
+                reportSigner.setX(validationSigningImageX);
+                reportSigner.setY(validationSigningImageY);
+                reportSigner.setWidth(validationSigningImageWidth);
+                reportSigner.setHeight(validationSigningImageHeight);
             } catch (Exception ex) {
                 logger.warn("Failed to find validation certificate from path " + signingCertificateJksPath, ex);
             }
