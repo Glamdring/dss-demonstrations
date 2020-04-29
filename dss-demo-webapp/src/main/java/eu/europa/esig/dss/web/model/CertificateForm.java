@@ -1,14 +1,17 @@
 package eu.europa.esig.dss.web.model;
 
-import javax.validation.constraints.AssertTrue;
-
 import org.springframework.web.multipart.MultipartFile;
 
+import eu.europa.esig.dss.utils.Utils;
+
 public class CertificateForm {
-
+	
 	private MultipartFile certificateFile;
-
-	private boolean addToKeystore;
+	
+	private String certificateBase64;
+	
+	public CertificateForm() {
+	}
 
 	public MultipartFile getCertificateFile() {
 		return certificateFile;
@@ -18,17 +21,24 @@ public class CertificateForm {
 		this.certificateFile = certificateFile;
 	}
 
-	public boolean isAddToKeystore() {
-		return addToKeystore;
+	public String getCertificateBase64() {
+		return certificateBase64;
 	}
 
-	public void setAddToKeystore(boolean addToKeystore) {
-		this.addToKeystore = addToKeystore;
+	public void setCertificateBase64(String certificateBase64) {
+		this.certificateBase64 = certificateBase64;
+	}
+	
+	private boolean isCertificateFileNotEmpty() {
+		return certificateFile != null && !certificateFile.isEmpty();
+	}
+	
+	private boolean isCertificateBase64Valid() {
+		return Utils.isStringNotBlank(certificateBase64) && Utils.isBase64Encoded(certificateBase64);
 	}
 
-	@AssertTrue(message = "{error.certificate.mandatory}")
-	public boolean isCertificateFile() {
-		return (certificateFile != null) && (!certificateFile.isEmpty());
+	public boolean isValid() {
+		return isCertificateFileNotEmpty() || isCertificateBase64Valid();
 	}
 
 }

@@ -2,6 +2,7 @@ package eu.europa.esig.dss.web.controller;
 
 import java.io.ByteArrayInputStream;
 import java.util.Date;
+import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -52,16 +53,19 @@ import eu.europa.esig.dss.web.service.SigningService;
 @RequestMapping(value = "/sign-a-document")
 public class SignatureController {
 
-	private static final Logger logger = LoggerFactory.getLogger(SignatureController.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SignatureController.class);
 
-	private static final String SIGNATURE_PARAMETERS = "signature-parameters";
+	private static final String SIGNATURE_PARAMETERS = "signature";
 	private static final String SIGNATURE_PROCESS = "nexu-signature-process";
 
 	@Value("${nexuUrl}")
 	private String nexuUrl;
 
-	@Value("${baseUrl}")
+	@Value("${nexuDownloadUrl}")
 	private String downloadNexuUrl;
+	
+    @Value("${default.digest.algo}")
+    private String defaultDigestAlgo;
 
 	@Autowired
 	private SigningService signingService;
@@ -79,6 +83,7 @@ public class SignatureController {
 	@RequestMapping(method = RequestMethod.GET)
 	public String showSignatureParameters(Model model, HttpServletRequest request) {
 		SignatureDocumentForm signatureDocumentForm = new SignatureDocumentForm();
+		signatureDocumentForm.setDigestAlgorithm(DigestAlgorithm.forName(defaultDigestAlgo, DigestAlgorithm.SHA256));
 		model.addAttribute("signatureDocumentForm", signatureDocumentForm);
 		model.addAttribute("downloadNexuUrl", downloadNexuUrl);
 		return SIGNATURE_PARAMETERS;
@@ -88,8 +93,11 @@ public class SignatureController {
 	public String sendSignatureParameters(Model model, HttpServletRequest response,
 			@ModelAttribute("signatureDocumentForm") @Valid SignatureDocumentForm signatureDocumentForm, BindingResult result) {
 		if (result.hasErrors()) {
-			for (ObjectError error : result.getAllErrors()) {
-				logger.error(error.getDefaultMessage());
+			if (LOG.isDebugEnabled()) {
+				List<ObjectError> allErrors = result.getAllErrors();
+				for (ObjectError error : allErrors) {
+					LOG.debug(error.getDefaultMessage());
+				}
 			}
 			return SIGNATURE_PARAMETERS;
 		}
@@ -153,7 +161,7 @@ public class SignatureController {
 			Utils.copy(new ByteArrayInputStream(signedDocument.getBytes()), response.getOutputStream());
 
 		} catch (Exception e) {
-			logger.error("An error occurred while pushing file in response : " + e.getMessage(), e);
+			LOG.error("An error occurred while pushing file in response : " + e.getMessage(), e);
 		}
 		return null;
 	}
@@ -179,4 +187,10 @@ public class SignatureController {
 				DigestAlgorithm.SHA512 };
 		return algos;
 	}
+
+	@ModelAttribute("isMockUsed")
+	public boolean isMockUsed() {
+		return signingService.isMockTSPSourceUsed();
+	}
+
 }

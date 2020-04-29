@@ -14,6 +14,7 @@ import org.junit.Test;
 
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.Indication;
+import eu.europa.esig.dss.enumerations.SubIndication;
 import eu.europa.esig.dss.model.FileDocument;
 import eu.europa.esig.dss.spi.DSSUtils;
 import eu.europa.esig.dss.validation.reports.Reports;
@@ -60,9 +61,9 @@ public class RestDocumentValidationIT extends AbstractRestIT {
 		assertNotNull(result.getSimpleReport());
 		assertNotNull(result.getValidationReport());
 
-		assertEquals(1, result.getSimpleReport().getSignature().size());
+		assertEquals(1, result.getSimpleReport().getSignatureOrTimestamp().size());
 		assertEquals(2, result.getDiagnosticData().getSignatures().get(0).getFoundTimestamps().size());
-		assertEquals(result.getSimpleReport().getSignature().get(0).getIndication(), Indication.INDETERMINATE);
+		assertEquals(result.getSimpleReport().getSignatureOrTimestamp().get(0).getIndication(), Indication.INDETERMINATE);
 
 		Reports reports = new Reports(result.getDiagnosticData(), result.getDetailedReport(), result.getSimpleReport(), 
 				result.getValidationReport());
@@ -84,8 +85,9 @@ public class RestDocumentValidationIT extends AbstractRestIT {
 		assertNotNull(result.getSimpleReport());
 		assertNotNull(result.getValidationReport());
 
-		assertEquals(1, result.getSimpleReport().getSignature().size());
-		assertEquals(Indication.INDETERMINATE, result.getSimpleReport().getSignature().get(0).getIndication());
+		assertEquals(1, result.getSimpleReport().getSignatureOrTimestamp().size());
+		assertEquals(Indication.INDETERMINATE, result.getSimpleReport().getSignatureOrTimestamp().get(0).getIndication());
+		assertEquals(SubIndication.NO_CERTIFICATE_CHAIN_FOUND, result.getSimpleReport().getSignatureOrTimestamp().get(0).getSubIndication());
 
 		Reports reports = new Reports(result.getDiagnosticData(), result.getDetailedReport(), result.getSimpleReport(), 
 				result.getValidationReport());
@@ -98,7 +100,7 @@ public class RestDocumentValidationIT extends AbstractRestIT {
 		RemoteDocument signedFile = RemoteDocumentConverter.toRemoteDocument(new FileDocument("src/test/resources/xades-detached.xml"));
 
 		FileDocument fileDocument = new FileDocument("src/test/resources/sample.xml");
-		RemoteDocument originalFile = new RemoteDocument(DSSUtils.digest(DigestAlgorithm.SHA256, fileDocument), fileDocument.getName());
+		RemoteDocument originalFile = new RemoteDocument(DSSUtils.digest(DigestAlgorithm.SHA256, fileDocument), DigestAlgorithm.SHA256, fileDocument.getName());
 
 		DataToValidateDTO toValidate = new DataToValidateDTO(signedFile, originalFile, null);
 
@@ -109,8 +111,9 @@ public class RestDocumentValidationIT extends AbstractRestIT {
 		assertNotNull(result.getSimpleReport());
 		assertNotNull(result.getValidationReport());
 
-		assertEquals(1, result.getSimpleReport().getSignature().size());
-		assertEquals(Indication.INDETERMINATE, result.getSimpleReport().getSignature().get(0).getIndication());
+		assertEquals(1, result.getSimpleReport().getSignatureOrTimestamp().size());
+		assertEquals(Indication.INDETERMINATE, result.getSimpleReport().getSignatureOrTimestamp().get(0).getIndication());
+		assertEquals(SubIndication.NO_CERTIFICATE_CHAIN_FOUND, result.getSimpleReport().getSignatureOrTimestamp().get(0).getSubIndication());
 
 		Reports reports = new Reports(result.getDiagnosticData(), result.getDetailedReport(), result.getSimpleReport(), 
 				result.getValidationReport());
@@ -133,8 +136,9 @@ public class RestDocumentValidationIT extends AbstractRestIT {
 		assertNotNull(result.getSimpleReport());
 		assertNotNull(result.getValidationReport());
 
-		assertEquals(1, result.getSimpleReport().getSignature().size());
-		assertEquals(Indication.INDETERMINATE, result.getSimpleReport().getSignature().get(0).getIndication());
+		assertEquals(1, result.getSimpleReport().getSignatureOrTimestamp().size());
+		assertEquals(Indication.INDETERMINATE, result.getSimpleReport().getSignatureOrTimestamp().get(0).getIndication());
+		assertEquals(SubIndication.NO_CERTIFICATE_CHAIN_FOUND, result.getSimpleReport().getSignatureOrTimestamp().get(0).getSubIndication());
 
 		Reports reports = new Reports(result.getDiagnosticData(), result.getDetailedReport(), result.getSimpleReport(), 
 				result.getValidationReport());
@@ -156,8 +160,9 @@ public class RestDocumentValidationIT extends AbstractRestIT {
 		assertNotNull(result.getSimpleReport());
 		assertNotNull(result.getValidationReport());
 
-		assertEquals(1, result.getSimpleReport().getSignature().size());
-		assertEquals(result.getSimpleReport().getSignature().get(0).getIndication(), Indication.INDETERMINATE);
+		assertEquals(1, result.getSimpleReport().getSignatureOrTimestamp().size());
+		assertEquals(Indication.INDETERMINATE, result.getSimpleReport().getSignatureOrTimestamp().get(0).getIndication());
+		assertEquals(SubIndication.SIGNED_DATA_NOT_FOUND, result.getSimpleReport().getSignatureOrTimestamp().get(0).getSubIndication());
 
 		Reports reports = new Reports(result.getDiagnosticData(), result.getDetailedReport(), result.getSimpleReport(), 
 				result.getValidationReport());
