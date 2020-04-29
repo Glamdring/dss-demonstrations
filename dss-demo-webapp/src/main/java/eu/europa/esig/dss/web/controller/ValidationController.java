@@ -39,7 +39,6 @@ import eu.europa.esig.dss.diagnostic.DiagnosticDataFacade;
 import eu.europa.esig.dss.diagnostic.RevocationWrapper;
 import eu.europa.esig.dss.diagnostic.TimestampWrapper;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlDiagnosticData;
-import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.RevocationType;
 import eu.europa.esig.dss.enumerations.TimestampType;
 import eu.europa.esig.dss.model.DSSDocument;
@@ -112,7 +111,7 @@ public class ValidationController extends AbstractValidationController {
             dpis = defaultPolicy.getInputStream();
             reports = documentValidator.validateDocument(dpis);
         } catch (IOException e) {
-            logger.error(e.getMessage(), e);
+            LOG.error(e.getMessage(), e);
         } finally {
             Utils.closeQuietly(dpis);
         }
@@ -146,14 +145,15 @@ public class ValidationController extends AbstractValidationController {
             response.setValidationLevel(request.getValidationLevel());
             return response;
         } catch (Exception ex) {
-            logger.error("An error occured while generating pdf for report : " + ex.getMessage(), ex);
+            LOG.error("An error occured while generating pdf for report : " + ex.getMessage(), ex);
             throw ex;
         }
         
 	}
 	
 	@RequestMapping(method = RequestMethod.POST)
-	public String validate(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, HttpSession session, Model model) {
+	public String validate(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, 
+	        HttpSession session, Model model, HttpServletRequest request) {
 		if (result.hasErrors()) {
 			if (LOG.isDebugEnabled()) {
 				List<ObjectError> allErrors = result.getAllErrors();
@@ -213,18 +213,19 @@ public class ValidationController extends AbstractValidationController {
 		return VALIDATION_RESULT_TILE;
 	}
 
+	
 	@RequestMapping(value = "/download-diagnostic-data")
-	public void downloadDiagnosticData(HttpSession session, HttpServletResponse response) {
-		String report = (String) session.getAttribute(DIAGNOSTIC_DATA_ATTRIBUTE);
+    public void downloadDiagnosticData(HttpSession session, HttpServletResponse response) {
+        String report = (String) session.getAttribute(XML_DIAGNOSTIC_DATA_ATTRIBUTE);
 
-		response.setContentType(MimeType.XML.getMimeTypeString());
-		response.setHeader("Content-Disposition", "attachment; filename=DSS-Diagnotic-data.xml");
-		try {
-			Utils.copy(new ByteArrayInputStream(report.getBytes()), response.getOutputStream());
-		} catch (IOException e) {
-			logger.error("An error occured while outputing diagnostic data : " + e.getMessage(), e);
-		}
-	}
+        response.setContentType(MimeType.XML.getMimeTypeString());
+        response.setHeader("Content-Disposition", "attachment; filename=DSS-Diagnotic-data.xml");
+        try {
+            Utils.write(report.getBytes(StandardCharsets.UTF_8), response.getOutputStream());
+        } catch (IOException e) {
+            LOG.error("An error occured while outputing diagnostic data : " + e.getMessage(), e);
+        }
+    }
 	
 	@RequestMapping(value = "/embed", method = RequestMethod.GET)
     public String showValidationEmbedForm(Model model, HttpServletRequest request) {
@@ -236,12 +237,12 @@ public class ValidationController extends AbstractValidationController {
     }
 
     @RequestMapping(value = "/embed", method = RequestMethod.POST)
-    public String validateEmbed(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, HttpSession session, Model model) {
+    public String validateEmbed(@ModelAttribute("validationForm") @Valid ValidationForm validationForm, BindingResult result, HttpSession session, Model model, HttpServletRequest request) {
         if (result.hasErrors()) {
             return VALIDATION_RESULT_EMBED_TILE;
         }
         
-        validate(validationForm, result, session, model);
+        validate(validationForm, result, session, model, request);
         
         return VALIDATION_RESULT_EMBED_TILE;
     }
@@ -304,23 +305,10 @@ public class ValidationController extends AbstractValidationController {
                 response.getWriter().write(etsiReport);
             }
         } catch (Exception e) {
-            logger.error("An error occurred while signing XML for ETSI report : " + e.getMessage(), e);
+            LOG.error("An error occurred while signing XML for ETSI report : " + e.getMessage(), e);
         }
     }
     
-	@RequestMapping(value = "/download-diagnostic-data")
-	public void downloadDiagnosticData(HttpSession session, HttpServletResponse response) {
-		String report = (String) session.getAttribute(XML_DIAGNOSTIC_DATA_ATTRIBUTE);
-
-		response.setContentType(MimeType.XML.getMimeTypeString());
-		response.setHeader("Content-Disposition", "attachment; filename=DSS-Diagnotic-data.xml");
-		try {
-			Utils.write(report.getBytes(StandardCharsets.UTF_8), response.getOutputStream());
-		} catch (IOException e) {
-			LOG.error("An error occured while outputing diagnostic data : " + e.getMessage(), e);
-		}
-	}
-
 	@RequestMapping(value = "/download-certificate")
 	public void downloadCertificate(@RequestParam(value = "id") String id, HttpSession session, HttpServletResponse response) {
 		DiagnosticData diagnosticData = getDiagnosticData(session);

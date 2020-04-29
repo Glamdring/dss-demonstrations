@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -25,13 +27,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.logsentinel.ApiCallbackAdapter;
-import com.logsentinel.ApiException;
 import com.logsentinel.LogSentinelClient;
-import com.logsentinel.client.model.ActionData;
-import com.logsentinel.client.model.ActorData;
-import com.logsentinel.client.model.AuditLogEntryType;
-import com.logsentinel.client.model.LogResponse;
+import com.logsentinel.model.ActionData;
+import com.logsentinel.model.ActorData;
+import com.logsentinel.model.ActionData.EntryTypeEnum;
 
 import eu.europa.esig.dss.AbstractSignatureParameters;
 import eu.europa.esig.dss.model.pades.SignatureImageTextParameters.SignerTextPosition;
@@ -109,6 +108,8 @@ public class SigningService {
 
 	@Autowired
 	private TSPSource tspSource;
+	
+	private ExecutorService executor = Executors.newCachedThreadPool();
 
 	public boolean isMockTSPSourceUsed() {
 		return tspSource instanceof MockTSPSource;
@@ -267,7 +268,7 @@ public class SigningService {
 	}
 	
 	private AbstractSignatureParameters fillParameters(SignatureDigestForm form) {
-		AbstractSignatureParameters parameters = getSignatureParameters(null, form.getSignatureForm());
+		AbstractSignatureParameters parameters = getSignatureParameters(null, form.getSignatureForm(), null);
 		parameters.setSignaturePackaging(SignaturePackaging.DETACHED);
 
 		fillParameters(parameters, form);
@@ -395,7 +396,7 @@ public class SigningService {
 
     private PAdESSignatureParameters createPAdESParameters(SignatureDocumentForm form) {
         PAdESSignatureParameters padesParams = new PAdESSignatureParameters();
-        padesParams.setSignatureSize(9472 * 2); // double reserved space for signature
+        padesParams.setContentSize(9472 * 2); // double reserved space for signature
         if (form != null) {
         	DSSDocument image = null;
         	try {
@@ -411,7 +412,7 @@ public class SigningService {
         	if (Utils.isStringNotBlank(form.getSignatureImageXml())) {
         	    try {
                     SignatureImageParameters signatureParams = (SignatureImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getSignatureImageXml()));
-                    padesParams.setSignatureImageParameters(signatureParams);
+                    padesParams.setImageParameters(signatureParams);
                     
                     if (Utils.isStringNotBlank(form.getStampImageXml())) {
                         StampImageParameters stampParams = (StampImageParameters) jaxbUnmarshaller.unmarshal(new StringReader(form.getStampImageXml()));
@@ -450,16 +451,16 @@ public class SigningService {
             	}
             	
             	if (!form.getSignatureImagePage().isEmpty()) {
-            		padesParams.setSignatureImageParameters(new SignatureImageParameters());
-            		padesParams.getSignatureImageParameters().setTextParameters(new SignatureImageTextParameters());
-                    padesParams.getSignatureImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
-                    padesParams.getSignatureImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
-                    padesParams.getSignatureImageParameters().getTextParameters().setSignerTextPosition(SignerTextPosition.FOREGROUND);
-                    padesParams.getSignatureImageParameters().setTextRightParameters(new SignatureImageTextParameters());
-                    padesParams.getSignatureImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
-            		padesParams.getSignatureImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
+            		padesParams.setImageParameters(new SignatureImageParameters());
+            		padesParams.getImageParameters().setTextParameters(new SignatureImageTextParameters());
+                    padesParams.getImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
+                    padesParams.getImageParameters().getTextParameters().setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment.RIGHT);
+                    padesParams.getImageParameters().getTextParameters().setSignerTextPosition(SignerTextPosition.FOREGROUND);
+                    padesParams.getImageParameters().setTextRightParameters(new SignatureImageTextParameters());
+                    padesParams.getImageParameters().getTextRightParameters().setText("Signature created by\nTest\nDate: %DateTimeWithTimeZone%");
+            		padesParams.getImageParameters().setPage(Integer.parseInt(form.getSignatureImagePage()));
             		if (!padesParams.getStampImageParameters().isEmpty()) {
-            		    padesParams.getSignatureImageParameters()
+            		    padesParams.getImageParameters()
             		        .setImage(padesParams.getStampImageParameters().get(0).getImage());
             		}
             	}
@@ -522,7 +523,7 @@ public class SigningService {
             throw new RuntimeException(ex);
         }
         
-        ActorData actor = new ActorData(params.getSigningCertificate().getCertificate().getSerialNumber().toString());
+        ActorData actor = new ActorData().actorId(params.getSigningCertificate().getCertificate().getSerialNumber().toString());
         
         if (logsentinelIncludeNames) {
             String signerNames = ldapName.getRdns().stream()
@@ -534,24 +535,21 @@ public class SigningService {
             actor.setActorDisplayName(signerNames);
         }
         
-        ActionData<String> action = new ActionData<>(signedDocument.getDigest(params.getDigestAlgorithm()));
+        ActionData<String> action = new ActionData<String>().action(signedDocument.getDigest(params.getDigestAlgorithm()));
         action.setAction("SIGN");
         action.setEntityType("DOCUMENT");
         if (signedDocument.getName() != null) {
             action.setEntityId(signedDocument.getName().replace(".pdf", ""));
         }
-        action.setEntryType(AuditLogEntryType.BUSINESS_LOGIC_ENTRY);
+        action.setEntryType(EntryTypeEnum.BUSINESS_LOGIC_ENTRY);
         
-        try {
-            logSentinelClient.getAuditLogActions().logAsync(actor, action, new ApiCallbackAdapter<LogResponse>() {
-                @Override
-                public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
-                    logger.error("Failed to log request", e);
-                }
-            });
-        } catch (ApiException e) {
-            logger.error("Failed to log request", e);
-        }
+        executor.submit(() -> {
+            try {
+                logSentinelClient.getAuditLogActions().log(actor, action);
+            } catch (Exception ex) {
+                LOG.error("Failed to log entry", ex);
+            }
+        });
     }
 	
 	@XmlRootElement

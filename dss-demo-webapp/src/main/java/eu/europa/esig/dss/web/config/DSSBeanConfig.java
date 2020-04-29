@@ -279,7 +279,7 @@ public class DSSBeanConfig {
                 reportSigner.setWidth(validationSigningImageWidth);
                 reportSigner.setHeight(validationSigningImageHeight);
             } catch (Exception ex) {
-                logger.warn("Failed to find validation certificate from path " + signingCertificateJksPath, ex);
+                LOG.warn("Failed to find validation certificate from path " + signingCertificateJksPath, ex);
             }
         }
         return reportSigner;
@@ -460,13 +460,13 @@ public class DSSBeanConfig {
         	            .build());
 	        }
 	    } catch (Exception ex) {
-	        logger.warn("Failed to load amqp client certificate", ex);
+	        LOG.warn("Failed to load amqp client certificate", ex);
 	    }
 	    factory.setUri(rabbitMqUri);
 	    try {
 	        return factory.newConnection();
 	    } catch (Exception ex) {
-	        logger.warn("Failed to connect to rabbitmq", ex);
+	        LOG.warn("Failed to connect to rabbitmq", ex);
 	        return null;
 	    }
 	}
