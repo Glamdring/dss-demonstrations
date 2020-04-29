@@ -2,6 +2,7 @@ package eu.europa.esig.dss.web.controller;
 
 import java.io.ByteArrayInputStream;
 import java.util.Date;
+import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -46,15 +47,15 @@ import eu.europa.esig.dss.web.service.SigningService;
 @RequestMapping(value = "/sign-a-pdf")
 public class SignaturePdfController {
 
-	private static final Logger logger = LoggerFactory.getLogger(SignaturePdfController.class);
+	private static final Logger LOG = LoggerFactory.getLogger(SignaturePdfController.class);
 
-	private static final String SIGNATURE_PDF_PARAMETERS = "signature-pdf-parameters";
+	private static final String SIGNATURE_PDF_PARAMETERS = "signature-pdf";
 	private static final String SIGNATURE_PROCESS = "nexu-signature-process";
 
 	@Value("${nexuUrl}")
 	private String nexuUrl;
 
-	@Value("${baseUrl}")
+	@Value("${nexuDownloadUrl}")
 	private String downloadNexuUrl;
 
 	@Autowired
@@ -79,8 +80,11 @@ public class SignaturePdfController {
 	public String sendSignatureParameters(Model model, HttpServletRequest response,
 			@ModelAttribute("signaturePdfForm") @Valid SignatureDocumentForm signaturePdfForm, BindingResult result) {
 		if (result.hasErrors()) {
-			for (ObjectError error : result.getAllErrors()) {
-				logger.error(error.getDefaultMessage());
+			if (LOG.isDebugEnabled()) {
+				List<ObjectError> allErrors = result.getAllErrors();
+				for (ObjectError error : allErrors) {
+					LOG.debug(error.getDefaultMessage());
+				}
 			}
 			return SIGNATURE_PDF_PARAMETERS;
 		}
@@ -142,9 +146,14 @@ public class SignaturePdfController {
 			Utils.copy(new ByteArrayInputStream(signedDocument.getBytes()), response.getOutputStream());
 
 		} catch (Exception e) {
-			logger.error("An error occurred while pushing file in response : " + e.getMessage(), e);
+			LOG.error("An error occurred while pushing file in response : " + e.getMessage(), e);
 		}
 		return null;
+	}
+
+	@ModelAttribute("isMockUsed")
+	public boolean isMockUsed() {
+		return signingService.isMockTSPSourceUsed();
 	}
 
 }

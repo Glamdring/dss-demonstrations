@@ -1,6 +1,7 @@
 package eu.europa.esig.dss.web.config;
 
 import java.io.FileInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStore.PasswordProtection;
@@ -32,6 +33,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import eu.europa.esig.dss.asic.cades.signature.ASiCWithCAdESService;
 import eu.europa.esig.dss.asic.xades.signature.ASiCWithXAdESService;
 import eu.europa.esig.dss.cades.signature.CAdESService;
+import eu.europa.esig.dss.model.DSSException;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.service.crl.JdbcCacheCRLSource;
 import eu.europa.esig.dss.service.crl.OnlineCRLSource;
@@ -42,13 +44,15 @@ import eu.europa.esig.dss.service.http.commons.TimestampDataLoader;
 import eu.europa.esig.dss.service.http.proxy.ProxyConfig;
 import eu.europa.esig.dss.service.ocsp.JdbcCacheOCSPSource;
 import eu.europa.esig.dss.service.ocsp.OnlineOCSPSource;
-import eu.europa.esig.dss.spi.client.http.DataLoader;
+import eu.europa.esig.dss.spi.client.http.DSSFileLoader;
+import eu.europa.esig.dss.spi.client.http.IgnoreDataLoader;
 import eu.europa.esig.dss.spi.tsl.TrustedListsCertificateSource;
 import eu.europa.esig.dss.spi.x509.KeyStoreCertificateSource;
 import eu.europa.esig.dss.spi.x509.tsp.TSPSource;
 import eu.europa.esig.dss.token.KeyStoreSignatureTokenConnection;
-import eu.europa.esig.dss.tsl.service.TSLRepository;
-import eu.europa.esig.dss.tsl.service.TSLValidationJob;
+import eu.europa.esig.dss.tsl.function.OfficialJournalSchemeInformationURI;
+import eu.europa.esig.dss.tsl.job.TLValidationJob;
+import eu.europa.esig.dss.tsl.source.LOTLSource;
 import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.validation.CommonCertificateVerifier;
@@ -57,6 +61,7 @@ import eu.europa.esig.dss.ws.server.signing.common.RemoteSignatureTokenConnectio
 import eu.europa.esig.dss.ws.server.signing.common.RemoteSignatureTokenConnectionImpl;
 import eu.europa.esig.dss.ws.signature.common.RemoteDocumentSignatureServiceImpl;
 import eu.europa.esig.dss.ws.signature.common.RemoteMultipleDocumentsSignatureServiceImpl;
+import eu.europa.esig.dss.ws.timestamp.remote.RemoteTimestampService;
 import eu.europa.esig.dss.ws.validation.common.RemoteDocumentValidationService;
 import eu.europa.esig.dss.ws.validation.common.ReportSigner;
 import eu.europa.esig.dss.xades.signature.XAdESService;
@@ -69,7 +74,7 @@ import eu.europa.esig.dss.xades.signature.XAdESService;
 @ImportResource({ "${tsp-source}" })
 public class DSSBeanConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(DSSBeanConfig.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DSSBeanConfig.class);
     
 	@Value("${default.validation.policy}")
 	private String defaultValidationPolicy;
@@ -230,7 +235,7 @@ public class DSSBeanConfig {
 		return jdbcCacheOCSPSource;
 	}
 
-	@Bean
+	@Bean(name = "european-trusted-list-certificate-source")
 	public TrustedListsCertificateSource trustedListSource() {
 		return new TrustedListsCertificateSource();
 	}
@@ -238,10 +243,10 @@ public class DSSBeanConfig {
 	@Bean
 	public CertificateVerifier certificateVerifier() throws Exception {
 		CommonCertificateVerifier certificateVerifier = new CommonCertificateVerifier();
-		certificateVerifier.setTrustedCertSource(trustedListSource());
 		certificateVerifier.setCrlSource(cachedCRLSource());
 		certificateVerifier.setOcspSource(cachedOCSPSource());
 		certificateVerifier.setDataLoader(dataLoader());
+		certificateVerifier.setTrustedCertSources(trustedListSource());
 		return certificateVerifier;
 	}
 	
@@ -274,7 +279,7 @@ public class DSSBeanConfig {
                 reportSigner.setWidth(validationSigningImageWidth);
                 reportSigner.setHeight(validationSigningImageHeight);
             } catch (Exception ex) {
-                logger.warn("Failed to find validation certificate from path " + signingCertificateJksPath, ex);
+                LOG.warn("Failed to find validation certificate from path " + signingCertificateJksPath, ex);
             }
         }
         return reportSigner;
@@ -371,31 +376,69 @@ public class DSSBeanConfig {
 		remoteSignatureTokenConnectionImpl.setToken(remoteToken());
 		return remoteSignatureTokenConnectionImpl;
 	}
-
+	
 	@Bean
-	public TSLRepository tslRepository(TrustedListsCertificateSource trustedListSource) {
-		TSLRepository tslRepository = new TSLRepository();
-		tslRepository.setTrustedListsCertificateSource(trustedListSource);
-		return tslRepository;
+	public RemoteTimestampService timestampService() throws IOException {
+		RemoteTimestampService timestampService = new RemoteTimestampService();
+		timestampService.setTSPSource(tspSource);
+		return timestampService;
 	}
 
 	@Bean
-	public KeyStoreCertificateSource ojContentKeyStore() throws IOException {
-		return new KeyStoreCertificateSource(new ClassPathResource(ksFilename).getFile(), ksType, ksPassword);
+	public KeyStoreCertificateSource ojContentKeyStore() {
+		try {
+			return new KeyStoreCertificateSource(new ClassPathResource(ksFilename).getFile(), ksType, ksPassword);
+		} catch (IOException e) {
+			throw new DSSException("Unable to load the file " + ksFilename, e);
+		}
+	}
+	
+	@Bean 
+	public TLValidationJob job() {
+		TLValidationJob job = new TLValidationJob();
+		job.setTrustedListCertificateSource(trustedListSource());
+		job.setListOfTrustedListSources(europeanLOTL());
+		job.setOfflineDataLoader(offlineLoader());
+		job.setOnlineDataLoader(onlineLoader());
+		return job;
 	}
 
 	@Bean
-	public TSLValidationJob tslValidationJob(DataLoader dataLoader, TSLRepository tslRepository, KeyStoreCertificateSource ojContentKeyStore) {
-		TSLValidationJob validationJob = new TSLValidationJob();
-		validationJob.setDataLoader(dataLoader);
-		validationJob.setRepository(tslRepository);
-		validationJob.setLotlUrl(lotlUrl);
-		validationJob.setLotlCode(lotlCountryCode);
-		validationJob.setOjUrl(currentOjUrl);
-		validationJob.setOjContentKeyStore(ojContentKeyStore);
-		validationJob.setCheckLOTLSignature(true);
-		validationJob.setCheckTSLSignatures(true);
-		return validationJob;
+	public DSSFileLoader onlineLoader() {
+		FileCacheDataLoader offlineFileLoader = new FileCacheDataLoader();
+		offlineFileLoader.setCacheExpirationTime(0);
+		offlineFileLoader.setDataLoader(dataLoader());
+		offlineFileLoader.setFileCacheDirectory(tlCacheDirectory());
+		return offlineFileLoader;
+	}
+
+	@Bean(name = "european-lotl-source")
+	public LOTLSource europeanLOTL() {
+		LOTLSource lotlSource = new LOTLSource();
+		lotlSource.setUrl(lotlUrl);
+		lotlSource.setCertificateSource(ojContentKeyStore());
+		lotlSource.setSigningCertificatesAnnouncementPredicate(new OfficialJournalSchemeInformationURI(currentOjUrl));
+		lotlSource.setPivotSupport(true);
+		return lotlSource;
+	}
+
+	@Bean
+	public DSSFileLoader offlineLoader() {
+		FileCacheDataLoader offlineFileLoader = new FileCacheDataLoader();
+		offlineFileLoader.setCacheExpirationTime(Long.MAX_VALUE);
+		offlineFileLoader.setDataLoader(new IgnoreDataLoader());
+		offlineFileLoader.setFileCacheDirectory(tlCacheDirectory());
+		return offlineFileLoader;
+	}
+
+	@Bean
+	public File tlCacheDirectory() {
+		File rootFolder = new File(System.getProperty("java.io.tmpdir"));
+		File tslCache = new File(rootFolder, "dss-tsl-loader");
+		if (tslCache.mkdirs()) {
+			LOG.info("TL Cache folder : {}", tslCache.getAbsolutePath());
+		}
+		return tslCache;
 	}
 	
 	
@@ -417,13 +460,13 @@ public class DSSBeanConfig {
         	            .build());
 	        }
 	    } catch (Exception ex) {
-	        logger.warn("Failed to load amqp client certificate", ex);
+	        LOG.warn("Failed to load amqp client certificate", ex);
 	    }
 	    factory.setUri(rabbitMqUri);
 	    try {
 	        return factory.newConnection();
 	    } catch (Exception ex) {
-	        logger.warn("Failed to connect to rabbitmq", ex);
+	        LOG.warn("Failed to connect to rabbitmq", ex);
 	        return null;
 	    }
 	}

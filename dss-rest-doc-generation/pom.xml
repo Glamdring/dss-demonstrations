@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 		<artifactId>dss-demos</artifactId>
-		<version>5.5</version>
+		<version>5.6</version>
 	</parent>
 
 	<name>DSS REST Doc generation</name>
@@ -31,6 +31,11 @@
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 			<artifactId>dss-server-signing-rest-client</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
+			<artifactId>dss-timestamp-remote-rest-client</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>

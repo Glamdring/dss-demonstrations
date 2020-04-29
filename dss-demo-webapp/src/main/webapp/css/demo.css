@@ -1,0 +1,127 @@
+/* Main */
+.cursor-pointer {
+	cursor: pointer;
+}
+.cursor-not-allowed {
+    cursor: not-allowed;
+}
+.animate, .animate * {
+    -webkit-transition: all 0.2s 0.0s linear;
+    -moz-transition: all 0.2s 0.0s linear;
+    -ms-transition: all 0.2s 0.0s linear;
+    -o-transition: all 0.2s 0.0s linear;
+    transition: all 0.2s 0.0s linear;
+}
+.card-header.bg-primary {
+	color: #fff!important;
+}
+/* End Main */
+
+/* Digest parameters */
+
+#spinner {
+	float: left; 
+	visibility: hidden; 
+	margin-left: 10px;
+}
+
+.loader {
+  border: 8px solid #f3f3f3;
+  border-radius: 50%;
+  border-top: 8px solid #3498db;
+  width: 25px;
+  height: 25px;
+  -webkit-animation: spin 2s linear infinite; /* Safari */
+  animation: spin 2s linear infinite;
+}
+
+/* Safari */
+@-webkit-keyframes spin {
+  0% { -webkit-transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* End digest parameters */
+
+/* Drag And Drop */
+
+form .drag-file-label {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  border: 4px dashed;
+}
+
+form .drag-file {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  opacity: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* End Drag And Drop */
+
+/* Digest sign */
+
+form#digest-sign-form p#filename {
+  line-height: 32px;
+}
+
+/* End Digest sign */
+
+/* PDF signature */
+
+form#sign-pdf-form p#filename {
+  line-height: 200px;
+}
+
+/* End PDF signature */
+
+/* Certificate validation */
+
+.certificate-form {
+	position: relative;
+}
+
+#certificate-switcher {
+    position: absolute;
+    right: 0;
+    z-index: 1;
+}
+
+.certificate-form-switcher {
+	position: absolute;
+    width: 100%;
+}
+/* End Certificate validation */
+
+/* TL-Loading */
+.summary-table tbody:nth-of-type(odd) {
+    background-color: rgba(0,0,0,.05);
+}
+.tl-info-preview td:last-child:after {
+    display: inline-block;
+    position: absolute;
+    font: normal normal normal 14px/1 FontAwesome;
+    content: "\f077";
+    opacity: 0.3;
+    right: -25px;
+    margin-top: 4px;
+}
+.tl-info-preview.collapsed td:last-child:after {
+    content: "\f078";
+}
+.tl-info-preview:hover td:last-child:after {
+	opacity: 0.6;
+}
+/* End TL-Loading */

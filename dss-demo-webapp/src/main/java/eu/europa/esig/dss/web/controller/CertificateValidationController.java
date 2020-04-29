@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.TimeZone;
 
 import javax.servlet.http.HttpServletRequest;
@@ -11,11 +12,11 @@ import javax.validation.Valid;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.propertyeditors.CustomDateEditor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -34,9 +35,8 @@ import eu.europa.esig.dss.validation.CertificateValidator;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.validation.reports.CertificateReports;
 import eu.europa.esig.dss.web.exception.BadRequestException;
+import eu.europa.esig.dss.web.model.CertificateForm;
 import eu.europa.esig.dss.web.model.CertificateValidationForm;
-
-
 
 @Controller
 @SessionAttributes({ "simpleReportXml", "detailedReportXml", "diagnosticDataXml" })
@@ -47,9 +47,6 @@ public class CertificateValidationController extends AbstractValidationControlle
 
 	private static final String VALIDATION_TILE = "certificate_validation";
 	private static final String VALIDATION_RESULT_TILE = "validation_result";
-
-	@Autowired
-	private CertificateVerifier certificateVerifier;
 
 	@InitBinder
 	public void initBinder(WebDataBinder webDataBinder) {
@@ -68,12 +65,19 @@ public class CertificateValidationController extends AbstractValidationControlle
 	}
 
 	@RequestMapping(method = RequestMethod.POST)
-	public String validate(@ModelAttribute("certValidationForm") @Valid CertificateValidationForm certValidationForm, BindingResult result, Model model) {
+	public String validate(@ModelAttribute("certValidationForm") @Valid CertificateValidationForm certValidationForm, 
+			BindingResult result, Model model, HttpServletRequest request) {
 		if (result.hasErrors()) {
+			if (LOG.isDebugEnabled()) {
+				List<ObjectError> allErrors = result.getAllErrors();
+				for (ObjectError error : allErrors) {
+					LOG.debug(error.getDefaultMessage());
+				}
+			}
 			return VALIDATION_TILE;
 		}
 
-		CertificateToken certificate = getCertificate(certValidationForm.getCertificateFile());
+		CertificateToken certificate = getCertificate(certValidationForm.getCertificateForm());
 
 		List<MultipartFile> certificateChainFiles = certValidationForm.getCertificateChainFiles();
 		if (Utils.isCollectionNotEmpty(certificateChainFiles)) {
@@ -87,7 +91,7 @@ public class CertificateValidationController extends AbstractValidationControlle
 			certificateVerifier.setAdjunctCertSource(adjunctCertSource);
 		}
 
-		LOG.info("Start certificate validation");
+		LOG.trace("Start certificate validation");
 
 		CertificateVerifier cv = certificateVerifier;
 		cv.setIncludeCertificateTokenValues(certValidationForm.isIncludeCertificateTokens());
@@ -97,6 +101,14 @@ public class CertificateValidationController extends AbstractValidationControlle
 		certificateValidator.setCertificateVerifier(cv);
 		certificateValidator.setValidationTime(certValidationForm.getValidationTime());
 
+		Locale locale = request.getLocale();
+		LOG.trace("Requested locale : {}", request.getLocale());
+		if (locale == null) {
+			locale = Locale.getDefault();
+			LOG.warn("The request locale is null! Use the default one : {}", locale);
+		}
+		certificateValidator.setLocale(locale);
+
 		CertificateReports reports = certificateValidator.validate();
 
 		// reports.print();
@@ -104,6 +116,17 @@ public class CertificateValidationController extends AbstractValidationControlle
 		setAttributesModels(model, reports);
 
 		return VALIDATION_RESULT_TILE;
+	}
+	
+	private CertificateToken getCertificate(CertificateForm certificateForm) {
+		CertificateToken certificateToken = getCertificate(certificateForm.getCertificateFile());
+		if (certificateToken == null) {
+			certificateToken = DSSUtils.loadCertificateFromBase64EncodedString(certificateForm.getCertificateBase64());
+			if (certificateToken == null) {
+				throw new DSSException("Cannot convert base64 to a CertificateToken!");
+			}
+		}
+		return certificateToken;
 	}
 
 	private CertificateToken getCertificate(MultipartFile file) {
