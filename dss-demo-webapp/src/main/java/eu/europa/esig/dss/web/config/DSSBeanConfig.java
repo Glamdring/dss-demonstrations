@@ -9,6 +9,7 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 
+import javax.annotation.PostConstruct;
 import javax.sql.DataSource;
 
 import org.apache.http.ssl.SSLContexts;
@@ -34,6 +35,7 @@ import eu.europa.esig.dss.asic.cades.signature.ASiCWithCAdESService;
 import eu.europa.esig.dss.asic.xades.signature.ASiCWithXAdESService;
 import eu.europa.esig.dss.cades.signature.CAdESService;
 import eu.europa.esig.dss.model.DSSException;
+import eu.europa.esig.dss.model.pades.DSSDocumentAdapter;
 import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.service.crl.JdbcCacheCRLSource;
 import eu.europa.esig.dss.service.crl.OnlineCRLSource;
@@ -172,6 +174,11 @@ public class DSSBeanConfig {
 	// can be null
 	@Autowired(required = false)
 	private ProxyConfig proxyConfig;
+	
+	@PostConstruct
+	public void init() {
+	    DSSDocumentAdapter.imageDir = signatureImageDir;
+	}
 	
 	@Bean
 	public CommonsDataLoader dataLoader() {
