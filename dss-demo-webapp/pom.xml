@@ -177,7 +177,6 @@
 		<dependency>
 			<groupId>eu.europa.ec.joinup.sd-dss</groupId>
 			<artifactId>dss-mock-tsa</artifactId>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
