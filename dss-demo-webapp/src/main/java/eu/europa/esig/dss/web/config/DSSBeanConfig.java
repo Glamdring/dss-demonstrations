@@ -7,9 +7,11 @@ import java.security.KeyStore;
 import java.security.KeyStore.PasswordProtection;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.sql.SQLException;
 import java.util.Enumeration;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.sql.DataSource;
 
 import org.apache.http.ssl.SSLContexts;
@@ -180,6 +182,30 @@ public class DSSBeanConfig {
 	    DSSDocumentAdapter.imageDir = signatureImageDir;
 	}
 	
+	@PostConstruct
+    public void cachedCRLSourceInitialization() throws SQLException {
+        JdbcCacheCRLSource jdbcCacheCRLSource = cachedCRLSource();
+        jdbcCacheCRLSource.initTable();
+    }
+
+    @PostConstruct
+    public void cachedOCSPSourceInitialization() throws SQLException {
+        JdbcCacheOCSPSource jdbcCacheOCSPSource = cachedOCSPSource();
+        jdbcCacheOCSPSource.initTable();
+    }
+
+    @PreDestroy
+    public void cachedCRLSourceClean() throws SQLException {
+        JdbcCacheCRLSource jdbcCacheCRLSource = cachedCRLSource();
+        jdbcCacheCRLSource.destroyTable();
+    }
+    
+    @PreDestroy
+    public void cachedOCSPSourceClean() throws SQLException {
+        JdbcCacheOCSPSource jdbcCacheOCSPSource = cachedOCSPSource();
+        jdbcCacheOCSPSource.destroyTable();
+    }
+    
 	@Bean
 	public CommonsDataLoader dataLoader() {
 		CommonsDataLoader dataLoader = new CommonsDataLoader();
