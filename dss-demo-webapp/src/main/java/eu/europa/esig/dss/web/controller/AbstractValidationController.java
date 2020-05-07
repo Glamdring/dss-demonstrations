@@ -20,9 +20,8 @@ import eu.europa.esig.validationreport.jaxb.ValidationReportType;
 public abstract class AbstractValidationController {
 
 	protected static final String ETSI_VALIDATION_REPORT_ATTRIBUTE = "etsiValidationReport";
-    protected static final String SIMPLE_REPORT_ATTRIBUTE = "simpleReportXml";
-	protected static final String DETAILED_REPORT_ATTRIBUTE = "detailedReportXml";
-	protected static final String DIAGNOSTIC_DATA_ATTRIBUTE = "diagnosticDataXml";
+    protected static final String SIMPLE_REPORT_ATTRIBUTE = "simpleReport";
+	protected static final String DETAILED_REPORT_ATTRIBUTE = "detailedReport";
 	
 	protected static final String XML_SIMPLE_REPORT_ATTRIBUTE = "simpleReportXml";
 	protected static final String XML_DETAILED_REPORT_ATTRIBUTE = "detailedReportXml";
