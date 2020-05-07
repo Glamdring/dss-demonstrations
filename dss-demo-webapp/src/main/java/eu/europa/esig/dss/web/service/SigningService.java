@@ -424,7 +424,7 @@ public class SigningService {
         	    
         	    
         	} else { // sample parameters without full customizability
-            	if (!form.getStampImagePages().isEmpty()) {
+            	if (form.getStampImagePages() != null && !form.getStampImagePages().isEmpty()) {
             		SignatureImageParameters stampParams = new SignatureImageParameters();
             		stampParams.setPagePlacement(VisualSignaturePagePlacement.RANGE);
             		stampParams.setTextParameters(new SignatureImageTextParameters());
@@ -450,7 +450,7 @@ public class SigningService {
             		padesParams.setStampImageParameters(Collections.singletonList(stampParams));
             	}
             	
-            	if (!form.getSignatureImagePage().isEmpty()) {
+            	if (form.getSignatureImagePage() != null && !form.getSignatureImagePage().isEmpty()) {
             		padesParams.setImageParameters(new SignatureImageParameters());
             		padesParams.getImageParameters().setTextParameters(new SignatureImageTextParameters());
                     padesParams.getImageParameters().getTextParameters().setText("%CN_1%\n%CN_2%\n%CN_3%");
