@@ -7,22 +7,17 @@
 				<div class="col-md-9">
 					<h2 th:text="#{label.validate}"></h2>
 					
-					<form method="post" class="form-horizontal" enctype="multipart/form-data" th:action="@{/validation/embed}" th:object="${validationForm}">
-					
-					   	<div th:replace="fields::field-signed-file"></div>
-											
-						<div th:replace="fields::field-original-files"></div>
+					<form method="post" enctype="multipart/form-data" th:action="@{/validation/embed}" th:object="${validationForm}" id="validation-form">
+
+		                <div th:replace="fragment/fields::field-signed-file"></div>
+		
+		                <div th:replace="fragment/fields::field-detached-original-files"></div>
 					
 					    <input type="hidden" value="ARCHIVAL_DATA" th:field="*{validationLevel}" />
                         
                         <input type="hidden" value="true" th:field="*{defaultPolicy}" />
                         
-					    <div class="form-group">
-					        <div class="col-sm-offset-2 col-sm-10">
-					            <button type="submit" class="btn btn-primary" th:text="#{label.submit}"></button>
-					            <button type="reset" class="btn" th:text="#{label.clear}"></button>
-					        </div>
-					    </div>   
+					    <div th:replace="fragment/fields::submit-reset"></div>
 					</form>
 
 				</div>
