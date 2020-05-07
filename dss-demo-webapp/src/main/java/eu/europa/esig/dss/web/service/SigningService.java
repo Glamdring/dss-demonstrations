@@ -400,7 +400,7 @@ public class SigningService {
         if (form != null) {
         	DSSDocument image = null;
         	try {
-        	    if (!form.getSignatureImage().isEmpty()) {
+        	    if (form.getSignatureImage() != null && !form.getSignatureImage().isEmpty()) {
             		image = new InMemoryDocument(form.getSignatureImage().getBytes());
             		image.setMimeType(MimeType.fromMimeTypeString(form.getSignatureImage().getContentType()));
         	    }
