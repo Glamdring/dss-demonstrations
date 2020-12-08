@@ -108,6 +108,9 @@ public class DSSBeanConfig {
 	@Value("${dss.server.signing.keystore.password}")
 	private String serverSigningKeystorePassword;
 	
+	@Value("${dss.exception.on.missing.revocation.data}")
+    private boolean exceptionOnMissingRevocationData;
+	
     @Value("${logsentinel.organization.id}")
     private String logsentinelOrgId;
 
@@ -254,6 +257,7 @@ public class DSSBeanConfig {
 		certificateVerifier.setOcspSource(cachedOCSPSource());
 		certificateVerifier.setDataLoader(dataLoader());
 		certificateVerifier.setTrustedCertSources(trustedListSource());
+		certificateVerifier.setExceptionOnMissingRevocationData(exceptionOnMissingRevocationData);
 		return certificateVerifier;
 	}
 	
