@@ -111,6 +111,9 @@ public class DSSBeanConfig {
 	@Value("${dss.exception.on.missing.revocation.data}")
     private boolean exceptionOnMissingRevocationData;
 	
+	@Value("${dss.check.revocation.for.untrusted.chains}")
+	private boolean checkRevocationForUntrustedChains;
+	
     @Value("${logsentinel.organization.id}")
     private String logsentinelOrgId;
 
@@ -258,6 +261,7 @@ public class DSSBeanConfig {
 		certificateVerifier.setDataLoader(dataLoader());
 		certificateVerifier.setTrustedCertSources(trustedListSource());
 		certificateVerifier.setExceptionOnMissingRevocationData(exceptionOnMissingRevocationData);
+		certificateVerifier.setCheckRevocationForUntrustedChains(checkRevocationForUntrustedChains);
 		return certificateVerifier;
 	}
 	
