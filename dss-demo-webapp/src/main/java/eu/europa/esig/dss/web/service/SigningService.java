@@ -397,6 +397,7 @@ public class SigningService {
     private PAdESSignatureParameters createPAdESParameters(SignatureDocumentForm form) {
         PAdESSignatureParameters padesParams = new PAdESSignatureParameters();
         padesParams.setContentSize(9472 * 2); // double reserved space for signature
+        padesParams.bLevel().setTrustAnchorBPPolicy(false); // if set to true, signatures by trusted-list providers fail
         if (form != null) {
         	DSSDocument image = null;
         	try {
