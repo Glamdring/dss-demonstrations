@@ -27,10 +27,10 @@
             <div role="tabcard" class="tab-pane fade in active show report" id="simple-report">
                 <div class="position-relative">
                     <div class="position-absolute btn-group d-print-none" role="toolbar" style="margin: 6px; z-index : 3; right : 0">
-                        <button type="button" class="btn btn-light"
+                        <!-- button type="button" class="btn btn-light"
                             onclick="window.print();">
                             <i class="fa fa-print"></i>&nbsp;<span th:text="#{label.print}"></span>
-                        </button>
+                        </button-->
                         <a class="btn btn-light"
                             th:href="@{/validation/download-simple-report?sign=true}" role="button"
                             th:if="${displayDownloadPdf}">
@@ -45,10 +45,10 @@
             <div role="tabcard" class="tab-pane fade report" id="detailed-report">
                 <div class="position-relative">
                     <div class="position-absolute btn-group d-print-none" role="toolbar" style="margin: 6px; z-index : 3; right : 0">
-                        <button type="button" class="btn btn-light"
+                        <!-- button type="button" class="btn btn-light"
                             onclick="window.print();">
                             <i class="fa fa-print"></i>&nbsp;<span th:text="#{label.print}"></span>
-                        </button>
+                        </button-->
                         <a class="btn btn-light"
                             th:href="@{/validation/download-detailed-report?sign=true}" role="button"
                             th:if="${displayDownloadPdf}">
@@ -128,7 +128,12 @@
                 <pre class="prettyprint lang-xml" th:text="${diagnosticDataXml}"></pre>
             </div>
             <div th:if="${etsiValidationReport} != null" role="tabcard" class="tab-pane fade report" id="etsi-validation-report">
-                <pre class="prettyprint lang-xml" th:text="${etsiValidationReport}"></pre>
+                <div class="btn-group pull-right hidden-print" role="toolbar" style="margin : 4px;">
+                    <a class="btn btn-light" th:href="@{/validation/download-etsi-report?sign=true}" role="button">
+                        <i class="fa fa-download"></i>&nbsp;<span>Download as XML</span>
+                    </a>
+                </div>
+                <pre class="prettyprint lang-xml" th:text="${etsiValidationReport}" style="float: left;"></pre>
             </div>
         </div>
     </div>
